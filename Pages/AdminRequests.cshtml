@@ -1,0 +1,70 @@
+﻿@page
+@model LoginSystem.Pages.AdminRequestsModel
+@using Microsoft.AspNetCore.Identity
+@{
+    ViewData["Title"] = "Admin Requests";
+}
+
+<h1>Yêu cầu trở thành Admin</h1>
+
+<!-- Tìm kiếm -->
+<form method="get" class="mb-3">
+    <div class="input-group">
+        <input type="text" class="form-control" name="searchTerm" value="@Model.SearchTerm" placeholder="Tìm kiếm theo tên hoặc email">
+        <button class="btn btn-primary" type="submit">Tìm kiếm</button>
+    </div>
+</form>
+
+@if (!Model.AdminRequests.Any())
+{
+    <div class="alert alert-info">Không có yêu cầu nào đang chờ.</div>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>UserName</th>
+                <th>Email</th>
+                <th>Lý do</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.AdminRequests)
+            {
+                <tr>
+                    <td>@user.UserName</td>
+                    <td>@user.Email</td>
+                    <td>@user.AdminRequestReason</td>
+                    <td>
+                        <form method="post" asp-page-handler="Approve" asp-route-id="@user.Id" asp-route-page="@Model.CurrentPage" asp-route-searchTerm="@Model.SearchTerm" class="d-inline">
+                            <button class="btn btn-success btn-sm">Chấp nhận</button>
+                        </form>
+                        <form method="post" asp-page-handler="Reject" asp-route-id="@user.Id" asp-route-page="@Model.CurrentPage" asp-route-searchTerm="@Model.SearchTerm" class="d-inline ms-1">
+                            <button class="btn btn-danger btn-sm">Từ chối</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Phân trang -->
+    <nav>
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                <a class="page-link" href="@Url.Page("./AdminRequests", new { page = 1, searchTerm = Model.SearchTerm })">Đầu</a>
+            </li>
+            <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                <a class="page-link" href="@Url.Page("./AdminRequests", new { page = Model.CurrentPage - 1, searchTerm = Model.SearchTerm })">Trước</a>
+            </li>
+            <li class="page-item @(Model.CurrentPage == Math.Ceiling((double)Model.TotalRequests / 10) ? "disabled" : "")">
+                <a class="page-link" href="@Url.Page("./AdminRequests", new { page = Model.CurrentPage + 1, searchTerm = Model.SearchTerm })">Sau</a>
+            </li>
+            <li class="page-item @(Model.CurrentPage == Math.Ceiling((double)Model.TotalRequests / 10) ? "disabled" : "")">
+                <a class="page-link" href="@Url.Page("./AdminRequests", new { page = (int)Math.Ceiling((double)Model.TotalRequests / 10), searchTerm = Model.SearchTerm })">Cuối</a>
+            </li>
+        </ul>
+    </nav>
+}

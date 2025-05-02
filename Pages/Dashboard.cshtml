@@ -1,0 +1,118 @@
+﻿@page
+@model LoginSystem.Pages.DashboardModel
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<h1>Quản lý người dùng</h1>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+<form method="get" class="mb-3 d-flex">
+    <input asp-for="SearchTerm" class="form-control me-2" placeholder="Search users..." />
+    <button type="submit" class="btn btn-outline-primary">Search</button>
+</form>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>DisplayName</th>
+            <th>Roles</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var u in Model.Users)
+        {
+            <tr>
+                <td>@u.UserName</td>
+                <td>@u.Email</td>
+                <td>@u.DisplayName</td>
+                <td>@string.Join(", ", await Model.UserManager.GetRolesAsync(u))</td>
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Action
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="edit" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
+                                    <button class="dropdown-item">Edit</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" onsubmit="return confirm('Delete this user?');">
+                                    <button class="dropdown-item text-danger">Delete</button>
+                                </form>
+                            </li>
+                            @if (!await Model.UserManager.IsInRoleAsync(u, "Admin"))
+                            {
+                                <li>
+                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
+                                        <button class="dropdown-item">Make Admin</button>
+                                    </form>
+                                </li>
+                            }
+                            else
+                            {
+                                <li>
+                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
+                                        <button class="dropdown-item">Revoke Admin</button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<nav>
+    <ul class="pagination">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
+            </li>
+        }
+    </ul>
+</nav>
+
+@if (User.IsInRole("SuperAdmin"))
+{
+    <hr />
+    <h2>Admin Requests</h2>
+    <table class="table">
+        <thead>
+            <tr><th>User</th><th>Reason</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var u in Model.AdminRequests)
+            {
+                <tr>
+                    <td>@u.UserName</td>
+                    <td>@u.AdminRequestReason</td>
+                    <td>
+                        <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="approveRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
+                            <button class="btn btn-success btn-sm">Accept</button>
+                        </form>
+                        <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="rejectRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" class="mt-1">
+                            <button class="btn btn-danger btn-sm">Reject</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
