@@ -1,0 +1,140 @@
+﻿@page
+@model LoginSystem.Pages.Organization.SearchModel
+@using Ganss.Xss
+@using HtmlAgilityPack
+@{
+    ViewData["Title"] = "Tìm kiếm tổ chức";
+
+    string ReplaceHeadingsWithParagraphs(string html)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html ?? "");
+        var headingTags = doc.DocumentNode.Descendants()
+                            .Where(n => n.Name.Length == 2 && n.Name.StartsWith("h") && char.IsDigit(n.Name[1]))
+                            .ToList();
+
+        foreach (var tag in headingTags)
+        {
+            tag.Name = "p";
+        }
+
+        return doc.DocumentNode.OuterHtml;
+    }
+
+    var sanitizer = new HtmlSanitizer();
+    sanitizer.AllowedTags.Clear();
+    sanitizer.AllowedTags.Add("p");
+    sanitizer.AllowedTags.Add("b");
+    sanitizer.AllowedTags.Add("strong");
+    sanitizer.AllowedTags.Add("i");
+    sanitizer.AllowedTags.Add("em");
+    sanitizer.AllowedTags.Add("u");
+    sanitizer.AllowedTags.Add("br");
+    sanitizer.AllowedTags.Add("ul");
+    sanitizer.AllowedTags.Add("ol");
+    sanitizer.AllowedTags.Add("li");
+    sanitizer.AllowedTags.Add("a");
+    sanitizer.AllowedTags.Add("span");
+    sanitizer.AllowedAttributes.Add("href"); 
+    sanitizer.AllowedAttributes.Add("title");
+    sanitizer.AllowedAttributes.Add("style");
+}
+
+<h1 class="mb-4 text-primary">🔍 Tìm kiếm tổ chức</h1>
+
+<form method="get" class="row g-3 align-items-center mb-4">
+    <div class="col-md-5">
+        <div class="input-group">
+            <input asp-for="SearchTerm" class="form-control" placeholder="🔎 Tên tổ chức..." />
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <select asp-for="FilterType" class="form-select">
+            <option value="All">Tất cả</option>
+            <option value="Public">Cộng đồng</option>
+            <option value="Private">Riêng tư</option>
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <select asp-for="SortBy" class="form-select">
+            <option value="Featured">📌 Nổi bật</option>
+            <option value="MembersDesc">👥 Thành viên (nhiều nhất)</option>
+            <option value="RatingDesc">⭐ Đánh giá (cao nhất)</option>
+            <option value="NameAsc">🔤 Tên A-Z</option>
+            <option value="NameDesc">🔡 Tên Z-A</option>
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">
+            🔍 Tìm kiếm
+        </button>
+    </div>
+</form>
+
+@if (!Model.Organizations.Any())
+{
+    <div class="alert alert-warning">Không tìm thấy tổ chức nào phù hợp.</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @foreach (var orgInfo in Model.Organizations)
+        {
+            var org = orgInfo.Organization;
+            if (org == null) continue;
+
+            var rawHtml = ReplaceHeadingsWithParagraphs(org.Description ?? "");
+            var sanitizedDescription = sanitizer.Sanitize(rawHtml);
+
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(string.IsNullOrEmpty(sanitizedDescription) ? "<p></p>" : sanitizedDescription);
+            var plainText = htmlDoc.DocumentNode.InnerText;
+            var shortText = plainText.Length > 100 ? plainText.Substring(0, 100) + "..." : plainText;
+            var shortDescription = $"<p>{shortText}</p>";
+
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <img src="@(org.AvatarUrl ?? "/images/default-org-avatar.png")"
+                         class="card-img-top"
+                         alt="Avatar tổ chức"
+                         style="height: 180px; object-fit: cover;" />
+                    <div class="card-body">
+                        <h5 class="card-title">@org.Name</h5>
+                        <p class="card-text"><strong>Loại:</strong> @(org.IsPrivate ? "Riêng tư" : "Cộng đồng")</p>
+                        <p class="card-text"><strong>Đánh giá:</strong> @orgInfo.AverageRating.ToString("0.0")/5</p>
+                        <p class="card-text"><strong>Thành viên:</strong> @orgInfo.MemberCount</p>
+                        <div class="card-text text-muted small">
+                            @if (!string.IsNullOrEmpty(shortText))
+                            {
+                                @Html.Raw(shortDescription)
+                            }
+                            else
+                            {
+                                <span>Không có mô tả.</span>
+                            }
+                        </div>
+                        <a asp-page="/Organization/Details" asp-route-slug="@org.Slug" class="btn btn-primary mt-3 w-100">Xem chi tiết</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                    <a class="page-link"
+                       asp-route-PageIndex="@i"
+                       asp-route-SearchTerm="@Model.SearchTerm"
+                       asp-route-FilterType="@Model.FilterType"
+                       asp-route-SortBy="@Model.SortBy">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

@@ -70,7 +70,8 @@ namespace LoginSystem.Pages
                     user.LastLoginTime = DateTime.UtcNow;
                     await _userManager.UpdateAsync(user);
 
-                    if (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"))
+                    // Chỉ SuperAdmin được chuyển đến Dashboard
+                    if (await _userManager.IsInRoleAsync(user, "SuperAdmin"))
                     {
                         return RedirectToPage("/Dashboard");
                     }
@@ -81,10 +82,6 @@ namespace LoginSystem.Pages
                 if (result.IsLockedOut)
                 {
                     ModelState.AddModelError(string.Empty, "Tài khoản đã bị khóa tạm thời do đăng nhập sai nhiều lần.");
-                }
-                else if (result.RequiresTwoFactor)
-                {
-                    return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
                 }
                 else
                 {

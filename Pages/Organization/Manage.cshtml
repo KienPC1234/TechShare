@@ -1,0 +1,268 @@
+﻿@page
+@model LoginSystem.Pages.Organization.ManageModel
+@{
+    ViewData["Title"] = "Quản Lý Tổ Chức";
+}
+
+<style>
+    .header-section {
+        background: linear-gradient(135deg, #007bff, #6610f2);
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        color: white;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h5 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #343a40;
+        }
+
+        .stat-card p {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+    .table th, .table td {
+        vertical-align: middle;
+    }
+
+    .avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .action-btn {
+        margin-right: 0.5rem;
+        transition: background-color 0.3s, transform 0.1s;
+    }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .badge-role {
+        font-size: 0.9rem;
+        padding: 0.5em 0.8em;
+    }
+</style>
+
+<div class="container my-5">
+    <!-- Header -->
+    <div class="header-section">
+        <h1 class="mb-0">Quản Lý @Model.Organization?.Name</h1>
+        <p class="mb-0">Quản lý thành viên, yêu cầu tham gia và thống kê tổ chức</p>
+    </div>
+
+    <!-- Alerts -->
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Statistics -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="stat-card">
+                <h5>Số Thành Viên</h5>
+                <p class="text-primary">@Model.TotalMembers</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stat-card">
+                <h5>Số Bình Luận</h5>
+                <p class="text-info">@Model.TotalComments</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stat-card">
+                <h5>Đánh Giá Trung Bình</h5>
+                <p class="text-warning">@Model.AverageRating.ToString("F1")/5</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Members -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-primary text-white rounded-top">
+            <h3 class="mb-0">Thành Viên (@Model.TotalMembers)</h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Thành Viên</th>
+                        <th>Vai Trò</th>
+                        <th>Ngày Tham Gia</th>
+                        <th>Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var member in Model.Members)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(member.AvatarUrl))
+                                {
+                                    <img src="@member.AvatarUrl" class="avatar" alt="Avatar" />
+                                }
+                                <span>@member.UserName</span>
+                            </td>
+                            <td>
+                                @if (member.Role == "Admin")
+                                {
+                                    <span class="badge bg-success badge-role">@member.Role</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary badge-role">@member.Role</span>
+                                }
+                            </td>
+                            <td>@member.JoinedAt.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (Model.Organization?.CreatorId == Model.UserManager.GetUserId(User) && member.Role != "Admin" && member.UserId != Model.Organization.CreatorId)
+                                {
+                                    <form method="post" asp-page-handler="Promote" asp-route-slug="@Model.Organization?.Slug" asp-route-memberId="@member.UserId" asp-route-role="Admin" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-success btn-sm action-btn">Thăng Admin</button>
+                                    </form>
+                                }
+                                @if (Model.Organization?.CreatorId == Model.UserManager.GetUserId(User) && member.Role != "Member" && member.UserId != Model.Organization.CreatorId)
+                                {
+                                    <form method="post" asp-page-handler="Demote" asp-route-slug="@Model.Organization?.Slug" asp-route-memberId="@member.UserId" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-warning btn-sm action-btn">Giáng Chức</button>
+                                    </form>
+                                }
+                                @if (member.UserId != Model.Organization?.CreatorId)
+                                {
+                                    <button type="button" class="btn btn-danger btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#removeMemberModal-@member.UserId">
+                                        Xóa
+                                    </button>
+                                    <!-- Modal for Remove Member -->
+                                    <div class="modal fade" id="removeMemberModal-@member.UserId" tabindex="-1" aria-labelledby="removeMemberModalLabel-@member.UserId" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="removeMemberModalLabel-@member.UserId">Xác Nhận Xóa Thành Viên</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Bạn có chắc chắn muốn xóa thành viên <strong>@member.UserName</strong> khỏi tổ chức?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <form method="post" asp-page-handler="RemoveMember" asp-route-slug="@Model.Organization?.Slug" asp-route-memberId="@member.UserId">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-danger">Xác Nhận</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Join Requests -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-info text-white rounded-top">
+            <h3 class="mb-0">Yêu Cầu Tham Gia (@Model.JoinRequests.Count)</h3>
+        </div>
+        <div class="card-body">
+            @if (Model.JoinRequests.Any())
+            {
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Người Dùng</th>
+                            <th>Ngày Yêu Cầu</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var request in Model.JoinRequests)
+                        {
+                            <tr>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(request.UserAvatar))
+                                    {
+                                        <img src="@request.UserAvatar" class="avatar" alt="Avatar" />
+                                    }
+                                    <span>@request.UserName</span>
+                                </td>
+                                <td>@request.RequestedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <form method="post" asp-page-handler="ApproveRequest" asp-route-slug="@Model.Organization?.Slug" asp-route-requestId="@request.Id" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-success btn-sm action-btn">Chấp Nhận</button>
+                                    </form>
+                                    <button type="button" class="btn btn-danger btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#rejectRequestModal-@request.Id">
+                                        Từ Chối
+                                    </button>
+                                    <!-- Modal for Reject Request -->
+                                    <div class="modal fade" id="rejectRequestModal-@request.Id" tabindex="-1" aria-labelledby="rejectRequestModalLabel-@request.Id" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="rejectRequestModalLabel-@request.Id">Xác Nhận Từ Chối Yêu Cầu</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Bạn có chắc chắn muốn từ chối yêu cầu tham gia của <strong>@request.UserName</strong>?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <form method="post" asp-page-handler="RejectRequest" asp-route-slug="@Model.Organization?.Slug" asp-route-requestId="@request.Id">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-danger">Xác Nhận</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p class="text-muted">Không có yêu cầu tham gia nào.</p>
+            }
+        </div>
+    </div>
+</div>

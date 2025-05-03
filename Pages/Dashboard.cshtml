@@ -1,118 +1,286 @@
 ﻿@page
 @model LoginSystem.Pages.DashboardModel
+@using Microsoft.EntityFrameworkCore
 @{
-    ViewData["Title"] = "User Management";
+    ViewData["Title"] = "Quản lý hệ thống";
 }
 
-<h1>Quản lý người dùng</h1>
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Quản lý hệ thống</h1>
 
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
-}
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
+    <!-- Notifications -->
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
-<form method="get" class="mb-3 d-flex">
-    <input asp-for="SearchTerm" class="form-control me-2" placeholder="Search users..." />
-    <button type="submit" class="btn btn-outline-primary">Search</button>
-</form>
+    <!-- Dashboard Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Tổng người dùng</h5>
+                    <p class="card-text display-4">@Model.TotalUsers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Tổng tổ chức</h5>
+                    <p class="card-text display-4">@Model.TotalOrganizations</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Yêu cầu Admin</h5>
+                    <p class="card-text display-4">@Model.AdminRequests.Count</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Báo cáo</h5>
+                    <p class="card-text display-4">@Model.Reports.Count</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>DisplayName</th>
-            <th>Roles</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var u in Model.Users)
-        {
-            <tr>
-                <td>@u.UserName</td>
-                <td>@u.Email</td>
-                <td>@u.DisplayName</td>
-                <td>@string.Join(", ", await Model.UserManager.GetRolesAsync(u))</td>
-                <td>
-                    <div class="dropdown">
-                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            Action
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="edit" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
-                                    <button class="dropdown-item">Edit</button>
-                                </form>
-                            </li>
-                            <li>
-                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" onsubmit="return confirm('Delete this user?');">
-                                    <button class="dropdown-item text-danger">Delete</button>
-                                </form>
-                            </li>
-                            @if (!await Model.UserManager.IsInRoleAsync(u, "Admin"))
-                            {
-                                <li>
-                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
-                                        <button class="dropdown-item">Make Admin</button>
+    <!-- User Management -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Quản lý người dùng</h2>
+        </div>
+        <div class="card-body">
+            <form method="get" class="mb-3 d-flex">
+                <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm người dùng..." />
+                <button type="submit" class="btn btn-primary">Tìm</button>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên đăng nhập</th>
+                            <th>Email</th>
+                            <th>Tên hiển thị</th>
+                            <th>Vai trò</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.Users)
+                        {
+                            <tr>
+                                <td>@u.UserName</td>
+                                <td>@u.Email</td>
+                                <td>@u.DisplayName</td>
+                                <td>@string.Join(", ", await Model.UserManager.GetRolesAsync(u))</td>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            Hành động
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promoteAdmin" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
+                                                    <button class="dropdown-item">Thăng Admin</button>
+                                                </form>
+                                            </li>
+                                            @if (await Model.UserManager.IsInRoleAsync(u, "Admin") && !await Model.UserManager.IsInRoleAsync(u, "SuperAdmin"))
+                                            {
+                                                <li>
+                                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demoteAdmin" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
+                                                        <button class="dropdown-item">Giáng Admin</button>
+                                                    </form>
+                                                </li>
+                                            }
+                                            <li>
+                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
+                                                    <button class="dropdown-item">Thăng SuperAdmin</button>
+                                                </form>
+                                            </li>
+                                            @if (await Model.UserManager.IsInRoleAsync(u, "SuperAdmin") && u.Id != Model.UserManager.GetUserId(User))
+                                            {
+                                                <li>
+                                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
+                                                        <button class="dropdown-item">Giáng SuperAdmin</button>
+                                                    </form>
+                                                </li>
+                                            }
+                                            <li>
+                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" onsubmit="return confirm('Xóa người dùng này?');">
+                                                    <button class="dropdown-item text-danger">Xóa</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav aria-label="User pagination">
+                <ul class="pagination justify-content-center">
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                            <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Organization Management -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Quản lý tổ chức</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên tổ chức</th>
+                            <th>Người tạo</th>
+                            <th>Thành viên</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var org in Model.Organizations)
+                        {
+                            var creator = await Model.UserManager.FindByIdAsync(org.CreatorId);
+                            var memberCount = await Model.DbContext.OrganizationMembers.CountAsync(m => m.OrganizationId == org.Id);
+                            <tr>
+                                <td>@org.Name</td>
+                                <td>@(creator?.UserName ?? "Unknown")</td>
+                                <td>@memberCount</td>
+                                <td>
+                                    <form method="post" asp-page-handler="Action" asp-route-id="@org.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="organization" onsubmit="return confirm('Xóa tổ chức này?');">
+                                        <button class="btn btn-danger btn-sm">Xóa</button>
                                     </form>
-                                </li>
-                            }
-                            else
-                            {
-                                <li>
-                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
-                                        <button class="dropdown-item">Revoke Admin</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav aria-label="Organization pagination">
+                <ul class="pagination justify-content-center">
+                    @for (int i = 1; i <= Model.TotalOrgPages; i++)
+                    {
+                        <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                            <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Reports -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Báo cáo tổ chức</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tổ chức</th>
+                            <th>Người báo cáo</th>
+                            <th>Lý do</th>
+                            <th>Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Reports)
+                        {
+                            var org = await Model.DbContext.Organizations.FindAsync(r.OrganizationId);
+                            var reporter = await Model.UserManager.FindByIdAsync(r.UserId);
+                            <tr>
+                                <td>@(org?.Name ?? "Unknown")</td>
+                                <td>@(reporter?.UserName ?? "Unknown")</td>
+                                <td>@r.Reason</td>
+                                <td>@r.ReportedAt</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Requests -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Yêu cầu Admin</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Người dùng</th>
+                            <th>Lý do</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.AdminRequests)
+                        {
+                            <tr>
+                                <td>@u.UserName</td>
+                                <td>@u.AdminRequestReason</td>
+                                <td>
+                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="approveRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" class="d-inline">
+                                        <button class="btn btn-success btn-sm">Chấp nhận</button>
                                     </form>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="rejectRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" class="d-inline">
+                                        <button class="btn btn-danger btn-sm">Từ chối</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-<nav>
-    <ul class="pagination">
-        @for (int i = 1; i <= Model.TotalPages; i++)
-        {
-            <li class="page-item @(Model.PageIndex == i ? "active" : "")">
-                <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
-            </li>
-        }
-    </ul>
-</nav>
+<style>
+    .card {
+        border-radius: 0.5rem;
+    }
 
-@if (User.IsInRole("SuperAdmin"))
-{
-    <hr />
-    <h2>Admin Requests</h2>
-    <table class="table">
-        <thead>
-            <tr><th>User</th><th>Reason</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var u in Model.AdminRequests)
-            {
-                <tr>
-                    <td>@u.UserName</td>
-                    <td>@u.AdminRequestReason</td>
-                    <td>
-                        <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="approveRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm">
-                            <button class="btn btn-success btn-sm">Accept</button>
-                        </form>
-                        <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="rejectRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" class="mt-1">
-                            <button class="btn btn-danger btn-sm">Reject</button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+</style>

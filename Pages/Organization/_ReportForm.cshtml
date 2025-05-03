@@ -1,0 +1,16 @@
+﻿@model LoginSystem.Pages.Organization.DetailsModel
+
+<form method="post"
+      asp-page="./Details"
+      asp-page-handler="Report"
+      asp-route-slug="@Model.Organization.Slug"
+      id="reportForm">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+    <textarea asp-for="ReportInput.Reason" class="form-control" rows="4"
+              placeholder="Nhập lý do báo cáo..." required></textarea>
+    <span asp-validation-for="ReportInput.Reason" class="text-danger"></span>
+    <button type="submit" class="btn btn-danger mt-2">
+        <i class="fas fa-flag"></i> Gửi Báo Cáo
+    </button>
+</form>

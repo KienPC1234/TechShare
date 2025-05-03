@@ -1,0 +1,16 @@
+﻿@model LoginSystem.Pages.Organization.DetailsModel
+
+<form method="post"
+      asp-page="./Details"
+      asp-page-handler="Comment"
+      asp-route-slug="@Model.Organization.Slug"
+      id="commentForm">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+    <textarea asp-for="CommentInput.Content" class="form-control" rows="4"
+              placeholder="Viết bình luận của bạn..." required></textarea>
+    <span asp-validation-for="CommentInput.Content" class="text-danger"></span>
+    <button type="submit" class="btn btn-primary mt-2">
+        <i class="fas fa-comment"></i> Gửi Bình Luận
+    </button>
+</form>

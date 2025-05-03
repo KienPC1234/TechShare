@@ -1,0 +1,129 @@
+﻿@page
+@model LoginSystem.Pages.Organization.EditModel
+@{
+    ViewData["Title"] = "Chỉnh Sửa Tổ Chức";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <h2 class="mb-0">Chỉnh Sửa @Model.Organization?.Name</h2>
+                </div>
+                <div class="card-body">
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-4">
+                            <label asp-for="Input.Name" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Name" class="form-control form-control-lg" placeholder="Nhập tên tổ chức" value="@Model.Organization?.Name" />
+                            <span asp-validation-for="Input.Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Input.Terms" class="form-label fw-bold"></label>
+                            <textarea asp-for="Input.Terms" class="form-control" rows="3" placeholder="Nhập điều khoản tham gia">@Model.Organization?.Terms</textarea>
+                            <span asp-validation-for="Input.Terms" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4 form-check">
+                            <input asp-for="Input.IsPrivate" class="form-check-input" />
+                            <label asp-for="Input.IsPrivate" class="form-check-label">Tổ chức riêng tư</label>
+                            <span asp-validation-for="Input.IsPrivate" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Input.Description" class="form-label fw-bold"></label>
+                            <textarea asp-for="Input.Description" class="form-control summernote">@Model.Organization?.Description</textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Input.Avatar" class="form-label fw-bold"></label>
+                            <input asp-for="Input.Avatar" type="file" class="form-control" accept="image/*" onchange="previewImage(event)" />
+                            <span asp-validation-for="Input.Avatar" class="text-danger"></span>
+                            <div class="mt-2">
+                                <img id="avatarPreview" src="@(Model.Organization?.AvatarUrl ?? "/images/default-org-avatar.png")" alt="Avatar Preview" style="max-width: 150px; max-height: 150px; display: block;" class="rounded" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Lưu Thay Đổi</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.summernote').summernote({
+                height: 300,
+                toolbar: [
+                    ['style', ['style']],
+                    ['font', ['bold', 'italic', 'underline', 'clear']],
+                    ['color', ['color']],
+                    ['para', ['ul', 'ol', 'paragraph']],
+                    ['insert', ['link', 'picture']],
+                    ['view', ['fullscreen', 'codeview']]
+                ],
+                callbacks: {
+                    onImageUpload: function(files) {
+                        let formData = new FormData();
+                        formData.append("file", files[0]);
+
+                        $.ajax({
+                            url: '/Organization/Edit?handler=UploadImage',
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            beforeSend: function(xhr) {
+                                xhr.setRequestHeader('RequestVerificationToken',
+                                    $('input:hidden[name="__RequestVerificationToken"]').val());
+                            },
+                            success: function(response) {
+                                console.log('Upload success:', response);
+                                $('.summernote').summernote('insertImage', response.location);
+                            },
+                            error: function(jqXHR, textStatus, errorThrown) {
+                                console.error('Upload failed:', {
+                                    status: jqXHR.status,
+                                    statusText: textStatus,
+                                    error: errorThrown,
+                                    response: jqXHR.responseText
+                                });
+                                alert('Không thể upload ảnh. Vui lòng thử lại. Lỗi: ' + textStatus + ' (' + jqXHR.status + ')');
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+        function previewImage(event) {
+            const preview = document.getElementById('avatarPreview');
+            preview.style.display = 'block';
+            preview.src = URL.createObjectURL(event.target.files[0]);
+        }
+    </script>
+}

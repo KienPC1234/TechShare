@@ -1,0 +1,352 @@
+﻿@page
+@model LoginSystem.Pages.Organization.DetailsModel
+@{
+    ViewData["Title"] = "Chi Tiết Tổ Chức";
+}
+
+<style>
+    .organization-header {
+        background: linear-gradient(135deg, #007bff, #6610f2);
+        padding: 2rem;
+        border-radius: 0.5rem;
+    }
+
+    .org-avatar {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+
+    .avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .member-avatar {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .org-description {
+        line-height: 1.6;
+        max-width: 100%;
+        overflow-x: auto;
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .card-header {
+        font-size: 1.25rem;
+        font-weight: 500;
+    }
+
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .btn {
+        transition: background-color 0.3s, transform 0.1s;
+    }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+    .alert {
+        border-radius: 0.5rem;
+    }
+
+    .nav-tabs .nav-link {
+        border-radius: 0.25rem 0.25rem 0 0;
+        color: #495057;
+    }
+
+        .nav-tabs .nav-link.active {
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+            color: #007bff;
+        }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    /* Modal styling */
+    .modal-content {
+        border-radius: 0.5rem;
+    }
+</style>
+
+<div class="container my-5">
+    <!-- Header -->
+    <div class="organization-header mb-4 d-flex align-items-center rounded shadow-sm">
+        @if (!string.IsNullOrEmpty(Model.Organization?.AvatarUrl))
+        {
+            <img src="@Model.Organization.AvatarUrl" class="org-avatar me-3" alt="Avatar tổ chức" />
+        }
+        <div>
+            <h1 class="display-5 mb-0 text-white">@Model.Organization?.Name</h1>
+            <p class="lead text-white mb-0">@((Model.Organization?.IsPrivate == true) ? "Tổ chức Riêng tư" : "Tổ chức Cộng đồng")</p>
+        </div>
+    </div>
+
+    <!-- Description (Moved Outside Tabs) -->
+    <div class="org-description">
+        @if (!string.IsNullOrEmpty(Model.Organization?.Description))
+        {
+            @Html.Raw(Model.Organization.Description)
+        }
+        else
+        {
+            <p class="text-muted">Chưa có mô tả cho tổ chức này.</p>
+        }
+    </div>
+
+    <!-- Alerts -->
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="orgTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#info" role="tab">Thông Tin</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#ratings" role="tab">Đánh Giá</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#comments" role="tab">Bình Luận</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#members" role="tab">Thành Viên</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#report" role="tab">Báo Cáo</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Info -->
+        <div class="tab-pane fade show active" id="info" role="tabpanel">
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-primary text-white rounded-top">Thông Tin Tổ Chức</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3 fw-bold">Loại:</dt>
+                        <dd class="col-sm-9">@((Model.Organization?.IsPrivate == true) ? "Riêng tư" : "Cộng đồng")</dd>
+                        <dt class="col-sm-3 fw-bold">Thành viên:</dt>
+                        <dd class="col-sm-9">@Model.MemberCount</dd>
+                        <dt class="col-sm-3 fw-bold">Đánh giá:</dt>
+                        <dd class="col-sm-9"><span class="badge bg-warning text-dark">@Model.AverageRating.ToString("F1")/5</span></dd>
+                    </dl>
+                    <div class="mt-4 action-buttons">
+                        @if (Model.IsAdmin)
+                        {
+                            <a asp-page="/Organization/Manage" asp-route-slug="@Model.Organization.Slug" class="btn btn-warning">
+                                <i class="fas fa-cog"></i> Quản Lý
+                            </a>
+                            <a asp-page="/Organization/Edit" asp-route-slug="@Model.Organization.Slug" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> Chỉnh Sửa
+                            </a>
+                        }
+                        else if (!Model.IsMember && !Model.HasRequested && Model.Organization.CreatorId != Model.CurrentUserId)
+                        {
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#joinModal">
+                                <i class="fas fa-user-plus"></i> Tham Gia
+                            </button>
+                        }
+                        @if (Model.IsMember && Model.Organization.CreatorId != Model.CurrentUserId)
+                        {
+                            <form method="post" asp-page-handler="Leave" asp-route-slug="@Model.Organization.Slug" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Bạn có chắc chắn muốn rời khỏi tổ chức này không?');">
+                                    <i class="fas fa-sign-out-alt"></i> Rời Tổ Chức
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ratings -->
+        <div class="tab-pane fade" id="ratings" role="tabpanel">
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-warning text-white rounded-top">Đánh Giá Tổ Chức</div>
+                <div class="card-body">
+                    @if (Model.IsMember)
+                    {
+                        @await Html.PartialAsync("_RatingForm", Model)
+                    }
+                    else
+                    {
+                        <p class="text-muted">Bạn cần tham gia tổ chức để có thể đánh giá.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="tab-pane fade" id="comments" role="tabpanel">
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-info text-white rounded-top">Bình Luận</div>
+                <div class="card-body">
+                    @if (Model.IsMember)
+                    {
+                        @await Html.PartialAsync("_CommentForm", Model)
+                    }
+                    <ul class="list-group list-group-flush mt-3">
+                        @foreach (var c in Model.Comments)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-start py-3">
+                                <div class="d-flex align-items-start">
+                                    @if (!string.IsNullOrEmpty(c.UserAvatar))
+                                    {
+                                        <img src="@c.UserAvatar" class="avatar me-3" alt="Avatar" />
+                                    }
+                                    <div>
+                                        <strong class="d-block">@c.UserName</strong>
+                                        <p class="mb-1">@c.Content</p>
+                                        <small class="text-muted">@c.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </div>
+                                </div>
+                                @if (Model.IsAdmin || c.UserId == Model.CurrentUserId)
+                                {
+                                    <form method="post"
+                                          asp-page-handler="DeleteComment"
+                                          asp-route-slug="@Model.Organization.Slug"
+                                          asp-route-commentId="@c.Id"
+                                          class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa bình luận này không?');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </li>
+                        }
+                        @if (!Model.Comments.Any())
+                        {
+                            <li class="list-group-item text-muted py-3">Chưa có bình luận nào.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members -->
+        <div class="tab-pane fade" id="members" role="tabpanel">
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-secondary text-white rounded-top">Thành Viên (@Model.MemberCount)</div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var m in Model.Members)
+                        {
+                            <li class="list-group-item d-flex align-items-center py-3">
+                                @if (!string.IsNullOrEmpty(m.AvatarUrl))
+                                {
+                                    <img src="@m.AvatarUrl" class="member-avatar me-3" alt="Avatar" />
+                                }
+                                <div>
+                                    <strong class="d-block">@m.DisplayName</strong>
+                                    <small class="text-muted">Role: @m.Role – Tham gia @m.JoinedAt.ToString("dd/MM/yyyy")</small>
+                                </div>
+                            </li>
+                        }
+                        @if (!Model.Members.Any())
+                        {
+                            <li class="list-group-item text-muted py-3">Chưa có thành viên nào.</li>
+                        }
+                    </ul>
+
+                    @if (Model.TotalPages > 1)
+                    {
+                        <nav class="mt-4" aria-label="Member pagination">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                                    <a class="page-link" href="?slug=@Model.Organization.Slug&page=@(Model.CurrentPage-1)#members" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                                @for (int i = 1; i <= Model.TotalPages; i++)
+                                {
+                                    <li class="page-item @(Model.CurrentPage == i ? "active" : "")">
+                                        <a class="page-link" href="?slug=@Model.Organization.Slug&page=@i#members">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                                    <a class="page-link" href="?slug=@Model.Organization.Slug&page=@(Model.CurrentPage+1)#members" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Report -->
+        <div class="tab-pane fade" id="report" role="tabpanel">
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-danger text-white rounded-top">Báo Cáo Tổ Chức</div>
+                <div class="card-body">
+                    @if (Model.IsMember && Model.Organization.CreatorId != Model.CurrentUserId)
+                    {
+                        @await Html.PartialAsync("_ReportForm", Model)
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Terms -->
+<div class="modal fade" id="joinModal" tabindex="-1" aria-labelledby="joinModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="joinModalLabel">Điều Khoản Tham Gia</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            @await Html.PartialAsync("_JoinTermsForm", Model)
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkbox = document.getElementById('termsCheckbox');
+            const joinButton = document.getElementById('joinButton');
+
+            checkbox.addEventListener('change', function () {
+                joinButton.disabled = !this.checked;
+            });
+        });
+    </script>
+}

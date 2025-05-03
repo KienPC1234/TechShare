@@ -1,0 +1,104 @@
+﻿@model LoginSystem.Pages.Organization.DetailsModel
+
+<style>
+    .rating-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .star-rating {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+        .star-rating .fa-star {
+            color: #dee2e6;
+            transition: color 0.2s ease-in-out;
+        }
+
+            .star-rating .fa-star.checked {
+                color: #ffc107;
+            }
+
+            .star-rating .fa-star.hover {
+                color: #ffca2c;
+            }
+
+    .validation-summary-errors {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+
+    .btn-submit-rating {
+        padding: 0.5rem 1.5rem;
+        font-size: 0.875rem;
+        border-radius: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+
+<form method="post"
+      asp-page="./Details"
+      asp-page-handler="Rate"
+      asp-route-slug="@Model.Organization.Slug"
+      id="ratingForm">
+    @Html.AntiForgeryToken()
+    <div class="rating-container">
+        <div class="star-rating" id="starRating">
+            <input type="hidden" asp-for="RatingInput.Score" id="ratingScore" />
+            <i class="fas fa-star" data-value="1"></i>
+            <i class="fas fa-star" data-value="2"></i>
+            <i class="fas fa-star" data-value="3"></i>
+            <i class="fas fa-star" data-value="4"></i>
+            <i class="fas fa-star" data-value="5"></i>
+        </div>
+        <button type="submit" class="btn btn-success btn-submit-rating">
+            <i class="fas fa-star"></i> Gửi Đánh Giá
+        </button>
+    </div>
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+    <span asp-validation-for="RatingInput.Score" class="text-danger"></span>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const stars = document.querySelectorAll('#starRating .fa-star');
+        const ratingInput = document.getElementById('ratingScore');
+
+        stars.forEach(star => {
+            star.addEventListener('click', function () {
+                const value = this.getAttribute('data-value');
+                ratingInput.value = value;
+
+                stars.forEach(s => {
+                    s.classList.remove('checked');
+                    if (s.getAttribute('data-value') <= value) {
+                        s.classList.add('checked');
+                    }
+                });
+            });
+
+            star.addEventListener('mouseover', function () {
+                const value = this.getAttribute('data-value');
+                stars.forEach(s => {
+                    s.classList.remove('hover');
+                    if (s.getAttribute('data-value') <= value) {
+                        s.classList.add('hover');
+                    }
+                });
+            });
+
+            star.addEventListener('mouseout', function () {
+                stars.forEach(s => s.classList.remove('hover'));
+            });
+        });
+    });
+</script>

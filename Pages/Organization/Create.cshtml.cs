@@ -1,0 +1,216 @@
+﻿#nullable enable
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using LoginSystem.Data;
+using LoginSystem.Models;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
+using Microsoft.Extensions.Logging;
+
+namespace LoginSystem.Pages.Organization
+{
+    [Authorize(Roles = "Admin")]
+    public class CreateModel : PageModel
+    {
+        private readonly ApplicationDbContext _dbContext;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<CreateModel> _logger;
+
+        public CreateModel(
+            ApplicationDbContext dbContext,
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
+            IWebHostEnvironment environment,
+            ILogger<CreateModel> logger)
+        {
+            _dbContext = dbContext;
+            _userManager = userManager;
+            _signInManager = signInManager;
+            _environment = environment;
+            _logger = logger;
+        }
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new InputModel();
+
+        public class InputModel
+        {
+            [Required]
+            [StringLength(100, MinimumLength = 3)]
+            [Display(Name = "Tên tổ chức")]
+            public string Name { get; set; } = string.Empty;
+
+            [Required]
+            [Display(Name = "Điều khoản tham gia")]
+            public string Terms { get; set; } = string.Empty;
+
+            [Display(Name = "Tổ chức riêng tư")]
+            public bool IsPrivate { get; set; }
+
+            [Display(Name = "Mô tả tổ chức")]
+            public string? Description { get; set; }
+
+            [Display(Name = "Avatar tổ chức")]
+            [DataType(DataType.Upload)]
+            public IFormFile? Avatar { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            var userId = _userManager.GetUserId(User);
+            if (_dbContext.Organizations.Any(o => o.CreatorId == userId))
+            {
+                TempData["ErrorMessage"] = "Bạn đã tạo một tổ chức. Mỗi admin chỉ được tạo tối đa 1 tổ chức.";
+                return RedirectToPage("/Organization/Index");
+            }
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostAsync()
+        {
+            if (!ModelState.IsValid)
+                return Page();
+
+            var userId = _userManager.GetUserId(User);
+            if (_dbContext.Organizations.Any(o => o.CreatorId == userId))
+            {
+                TempData["ErrorMessage"] = "Bạn đã tạo một tổ chức. Mỗi admin chỉ được tạo tối đa 1 tổ chức.";
+                return RedirectToPage("/Organization/Index");
+            }
+
+            var slug = GenerateSlug(Input.Name);
+            if (_dbContext.Organizations.Any(o => o.Slug == slug))
+            {
+                ModelState.AddModelError("Input.Name", "Tên tổ chức này đã tồn tại.");
+                return Page();
+            }
+
+            string? avatarUrl = null;
+            if (Input.Avatar != null)
+            {
+                var extension = Path.GetExtension(Input.Avatar.FileName).ToLowerInvariant();
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                if (!allowedExtensions.Contains(extension))
+                {
+                    ModelState.AddModelError("Input.Avatar", "Chỉ chấp nhận các định dạng ảnh: .jpg, .png, .jpeg, .webp.");
+                    return Page();
+                }
+
+                var uploadsFolder = Path.Combine(_environment.WebRootPath, "Uploads");
+                Directory.CreateDirectory(uploadsFolder);
+                var fileName = Guid.NewGuid() + ".jpg";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using var imageStream = Input.Avatar.OpenReadStream();
+                using var image = await Image.LoadAsync(imageStream);
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(300, 300),
+                    Mode = ResizeMode.Max
+                }).Pad(300, 300, Color.White));
+                using var outputStream = new FileStream(filePath, FileMode.Create);
+                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+
+                avatarUrl = "/Uploads/" + fileName;
+            }
+
+            var organization = new LoginSystem.Models.Organization
+            {
+                Name = Input.Name,
+                Slug = slug,
+                AvatarUrl = avatarUrl ?? "/images/default-org-avatar.png",
+                Terms = Input.Terms,
+                IsPrivate = Input.IsPrivate,
+                Description = Input.Description,
+                CreatorId = userId
+            };
+
+            _dbContext.Organizations.Add(organization);
+
+            var member = new OrganizationMember
+            {
+                OrganizationId = organization.Id,
+                UserId = userId,
+                Role = "Admin"
+            };
+            _dbContext.OrganizationMembers.Add(member);
+
+            var user = await _userManager.FindByIdAsync(userId);
+            user!.OrganizationId = organization.Id;
+            await _userManager.UpdateAsync(user);
+            await _signInManager.RefreshSignInAsync(user);
+
+            await _dbContext.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Tạo tổ chức thành công!";
+            return RedirectToPage("/Organization/Details", new { slug = organization.Slug });
+        }
+
+        public async Task<IActionResult> OnPostUploadImageAsync(IFormFile file)
+        {
+            _logger.LogInformation("Received image upload request. File: {FileName}, Size: {FileSize}", file?.FileName, file?.Length);
+
+            if (file == null || file.Length == 0)
+            {
+                _logger.LogWarning("No file uploaded.");
+                return new JsonResult(new { error = "Không có file được upload." }) { StatusCode = 400 };
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            if (!allowedExtensions.Contains(extension))
+            {
+                _logger.LogWarning("Invalid file extension: {Extension}", extension);
+                return new JsonResult(new { error = "Chỉ chấp nhận các định dạng ảnh: .jpg, .png, .jpeg, .webp." }) { StatusCode = 400 };
+            }
+
+            var uploadsFolder = Path.Combine(_environment.WebRootPath, "Uploads");
+            Directory.CreateDirectory(uploadsFolder);
+            var fileName = Guid.NewGuid() + ".jpg";
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            try
+            {
+                using var imageStream = file.OpenReadStream();
+                using var image = await Image.LoadAsync(imageStream);
+                // Không resize hay padding, chỉ nén JPEG 85%
+                using var outputStream = new FileStream(filePath, FileMode.Create);
+                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+
+                var url = "/Uploads/" + fileName;
+                _logger.LogInformation("Image uploaded successfully. URL: {Url}", url);
+                return new JsonResult(new { location = url });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading image: {Message}", ex.Message);
+                return new JsonResult(new { error = "Không thể xử lý ảnh. Vui lòng thử lại." }) { StatusCode = 500 };
+            }
+        }
+
+        private string GenerateSlug(string name)
+        {
+            string slug = name.ToLower();
+            slug = Regex.Replace(slug, @"[áàảãạăắằẳẵặâấầẩẫậ]", "a");
+            slug = Regex.Replace(slug, @"[éèẻẽẹêếềểễệ]", "e");
+            slug = Regex.Replace(slug, @"[íìỉĩị]", "i");
+            slug = Regex.Replace(slug, @"[óòỏõọôốồổỗộơớờởỡợ]", "o");
+            slug = Regex.Replace(slug, @"[úùủũụưứừửữự]", "u");
+            slug = Regex.Replace(slug, @"[ýỳỷỹỵ]", "y");
+            slug = Regex.Replace(slug, @"[đ]", "d");
+            slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
+            slug = Regex.Replace(slug, @"\s+", "-").Trim('-');
+            return slug;
+        }
+    }
+}
