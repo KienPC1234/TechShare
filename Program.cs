@@ -3,24 +3,29 @@ using Microsoft.EntityFrameworkCore;
 using LoginSystem.Data;
 using LoginSystem.Models;
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.SignalR; // Required for SignalR
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Đăng ký dịch vụ Razor Pages và DbContext
+// Add services
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Thêm dịch vụ Session
-builder.Services.AddDistributedMemoryCache(); // Cung cấp bộ nhớ cache cho Session
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Thời gian timeout của Session
-    options.Cookie.HttpOnly = true; // Cookie chỉ có thể truy cập qua HTTP
-    options.Cookie.IsEssential = true; // Cookie cần thiết, không cần consent
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
-// Cấu hình Identity
+builder.Services.AddMemoryCache();
+
+// Add SignalR services before builder.Build()
+builder.Services.AddSignalR();
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
@@ -29,7 +34,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Đăng ký CustomClaimsPrincipalFactory
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, CustomClaimsPrincipalFactory>();
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -48,7 +52,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
-// Cấu hình middleware
+// Configure middleware
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -58,21 +62,18 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
-// Thêm middleware Session trước Authentication và Authorization
 app.UseSession();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapRazorPages();
 
-// Tạo roles, tài khoản SuperAdmin và dữ liệu mẫu
+// Map SignalR hub
+app.MapHub<LoginSystem.Hubs.ChatHub>("/chatHub");
+
 await SeedDataAsync(app.Services);
 
 app.Run();
 
-// Hàm khởi tạo role, SuperAdmin và dữ liệu mẫu
 static async Task SeedDataAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
@@ -80,8 +81,8 @@ static async Task SeedDataAsync(IServiceProvider services)
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    // Tạo roles
-    string[] roleNames = { "User", "Admin", "SuperAdmin" };
+    // Create roles
+    string[] roleNames = { "User", "Admin", "SuperAdmin", "Delivery" };
     foreach (var roleName in roleNames)
     {
         if (!await roleManager.RoleExistsAsync(roleName))
@@ -90,7 +91,7 @@ static async Task SeedDataAsync(IServiceProvider services)
         }
     }
 
-    // Tạo tài khoản SuperAdmin
+    // Create SuperAdmin
     var superAdminEmail = "superadmin@example.com";
     var superAdminUser = await userManager.FindByEmailAsync(superAdminEmail);
     if (superAdminUser == null)
@@ -109,7 +110,7 @@ static async Task SeedDataAsync(IServiceProvider services)
         }
     }
 
-    // Tạo tài khoản Admin mẫu
+    // Create Admin
     var adminEmail = "admin@example.com";
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
     if (adminUser == null)
@@ -128,11 +129,31 @@ static async Task SeedDataAsync(IServiceProvider services)
         }
     }
 
-    // Tạo tổ chức mẫu nếu chưa có
+    // Create Delivery
+    var deliveryEmail = "delivery@example.com";
+    var deliveryUser = await userManager.FindByEmailAsync(deliveryEmail);
+    if (deliveryUser == null)
+    {
+        deliveryUser = new ApplicationUser
+        {
+            UserName = "delivery",
+            Email = deliveryEmail,
+            DisplayName = "Delivery User",
+            AvatarUrl = "/images/default-avatar.png"
+        };
+        var result = await userManager.CreateAsync(deliveryUser, "Delivery123!");
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(deliveryUser, "Delivery");
+        }
+    }
+
+    // Create organization
     if (!dbContext.Organizations.Any())
     {
         var org = new Organization
         {
+            Id = Guid.NewGuid().ToString(),
             Name = "Cộng Đồng Công Nghệ Việt Nam",
             Slug = "cong-dong-cong-nghe-viet-nam",
             AvatarUrl = "/images/default-org-avatar.png",
@@ -144,12 +165,25 @@ static async Task SeedDataAsync(IServiceProvider services)
         dbContext.Organizations.Add(org);
         dbContext.OrganizationMembers.Add(new OrganizationMember
         {
+            Id = Guid.NewGuid().ToString(),
             OrganizationId = org.Id,
             UserId = adminUser.Id,
             Role = "Admin"
         });
-        adminUser.OrganizationId = org.Id;
         await dbContext.SaveChangesAsync();
-        await userManager.UpdateAsync(adminUser);
+    }
+
+    // Create categories
+    if (!dbContext.ItemCategories.Any())
+    {
+        var categories = new[]
+        {
+            new ItemCategory { Id = Guid.NewGuid().ToString(), Name = "Đồ điện tử", Description = "Thiết bị điện tử và phụ kiện" },
+            new ItemCategory { Id = Guid.NewGuid().ToString(), Name = "Công cụ", Description = "Dụng cụ sửa chữa và làm việc" },
+            new ItemCategory { Id = Guid.NewGuid().ToString(), Name = "Sách", Description = "Sách và tài liệu học tập" },
+            new ItemCategory { Id = Guid.NewGuid().ToString(), Name = "Khác", Description = "Các mặt hàng khác" }
+        };
+        dbContext.ItemCategories.AddRange(categories);
+        await dbContext.SaveChangesAsync();
     }
 }

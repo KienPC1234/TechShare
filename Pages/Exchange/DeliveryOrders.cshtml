@@ -1,0 +1,173 @@
+﻿@page "/Exchange/DeliveryOrders"
+@model LoginSystem.Pages.Exchange.DeliveryOrdersModel
+@using Microsoft.AspNetCore.Identity
+@using LoginSystem.Models
+@inject UserManager<ApplicationUser> UserManager
+
+<div class="container mt-4">
+    <h1 class="mb-4">Danh sách đơn hàng giao</h1>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">@Model.ErrorMessage</div>
+    }
+
+    @if (Model.Orders.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Mặt hàng</th>
+                        <th>Người mượn</th>
+                        <th>Địa chỉ giao</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.Orders)
+                    {
+                        <tr>
+                            <td>@order.Id</td>
+                            <td><a asp-page="/Exchange/Item" asp-route-id="@order.Item.Id">@order.Item.Title</a></td>
+                            <td>@order.Borrower.DisplayName</td>
+                            <td>@order.ShippingAddress</td>
+                            <td>@order.Status</td>
+                            <td>
+                                @if (order.Status == "Pending" && string.IsNullOrEmpty(order.DeliveryAgentId))
+                                {
+                                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#acceptModal_@order.Id">Nhận đơn</button>
+                                    <div class="modal fade" id="acceptModal_@order.Id" tabindex="-1" aria-labelledby="acceptModalLabel_@order.Id" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="acceptModalLabel_@order.Id">Xác nhận nhận đơn</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Bạn có chắc muốn nhận đơn hàng <strong>@order.Id</strong>?</p>
+                                                    <form method="post" asp-page-handler="Accept" asp-route-orderId="@order.Id" class="needs-validation" novalidate>
+                                                        <div class="mb-3">
+                                                            <label for="paymentInfo_@order.Id" class="form-label">Thông tin thanh toán (tài khoản ngân hàng hoặc link mã QR)</label>
+                                                            <input type="text" class="form-control" id="paymentInfo_@order.Id" name="paymentInfo" required />
+                                                            <div class="invalid-feedback">Vui lòng nhập thông tin thanh toán.</div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                            <button type="submit" class="btn btn-primary">Xác nhận</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (order.Status == "Pending" && order.DeliveryAgentId == (await UserManager.GetUserAsync(User)).Id)
+                                {
+                                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal_@order.Id">Hủy đơn</button>
+                                    <div class="modal fade" id="cancelModal_@order.Id" tabindex="-1" aria-labelledby="cancelModalLabel_@order.Id" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="cancelModalLabel_@order.Id">Xác nhận hủy đơn</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Bạn có chắc muốn hủy đơn hàng <strong>@order.Id</strong>?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <form method="post" asp-page-handler="Cancel" asp-route-orderId="@order.Id" class="d-inline">
+                                                        <button type="submit" class="btn btn-danger">Hủy đơn</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (order.Status == "Accepted" && order.DeliveryAgentId == (await UserManager.GetUserAsync(User)).Id)
+                                {
+                                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#shippedModal_@order.Id">Đã gửi hàng</button>
+                                    <div class="modal fade" id="shippedModal_@order.Id" tabindex="-1" aria-labelledby="shippedModalLabel_@order.Id" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="shippedModalLabel_@order.Id">Xác nhận gửi hàng</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Bạn có chắc muốn cập nhật trạng thái đơn hàng <strong>@order.Id</strong> thành "Đã gửi hàng"?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <form method="post" asp-page-handler="UpdateStatus" asp-route-orderId="@order.Id" class="d-inline">
+                                                        <input type="hidden" name="status" value="Shipped" />
+                                                        <button type="submit" class="btn btn-success">Xác nhận</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (order.Status == "Shipped" && order.DeliveryAgentId == (await UserManager.GetUserAsync(User)).Id)
+                                {
+                                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#deliveredModal_@order.Id">Đã giao</button>
+                                    <div class="modal fade" id="deliveredModal_@order.Id" tabindex="-1" aria-labelledby="deliveredModalLabel_@order.Id" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="deliveredModalLabel_@order.Id">Xác nhận giao hàng</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Bạn có chắc muốn cập nhật trạng thái đơn hàng <strong>@order.Id</strong> thành "Đã giao"?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <form method="post" asp-page-handler="UpdateStatus" asp-route-orderId="@order.Id" class="d-inline">
+                                                        <input type="hidden" name="status" value="Delivered" />
+                                                        <button type="submit" class="btn btn-success">Xác nhận</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="alert alert-info">Không có đơn hàng nào cần giao.</p>
+    }
+
+    <div class="mt-4">
+        <a asp-page="/Exchange/DeliverySearch" class="btn btn-primary">Tìm kiếm đơn hàng</a>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            'use strict';
+            const forms = document.querySelectorAll('.needs-validation');
+            Array.from(forms).forEach(form => {
+                form.addEventListener('submit', event => {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,43 @@
+﻿@model LoginSystem.Pages.Exchange.ItemDetailsModel
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <h5 class="card-title fw-bold text-primary mb-3">Mượn mặt hàng</h5>
+        <form method="post" asp-page-handler="Borrow" class="needs-validation" novalidate>
+            <input type="hidden" name="id" value="@Model.Item?.Id" />
+            <div class="mb-3">
+                <label for="shippingAddress" class="form-label">Địa chỉ giao hàng</label>
+                <textarea class="form-control" id="shippingAddress" name="shippingAddress" rows="3" maxlength="500" placeholder="Nhập địa chỉ giao hàng..." required>@Model.SavedAddress</textarea>
+                <div class="invalid-feedback">Vui lòng nhập địa chỉ giao hàng (tối đa 500 ký tự).</div>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="saveAddress" name="saveAddress" value="true" />
+                <label class="form-check-label" for="saveAddress">Lưu địa chỉ này cho lần sau</label>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="termsAccepted" name="termsAccepted" value="true" required />
+                <label class="form-check-label" for="termsAccepted">Tôi đồng ý với <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">điều khoản mượn</a></label>
+                <div class="invalid-feedback">Bạn phải đồng ý với điều khoản mượn.</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Gửi yêu cầu mượn</button>
+        </form>
+
+        <!-- Modal for Terms -->
+        <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="termsModalLabel">Điều khoản mượn</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        @Html.Raw(string.IsNullOrWhiteSpace(Model.Item?.Terms) ? "Không có điều khoản." : Model.Item.Terms)
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

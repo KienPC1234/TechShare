@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using LoginSystem.Hubs;
 
 namespace LoginSystem.Pages.Organization
 {
@@ -16,11 +18,16 @@ namespace LoginSystem.Pages.Organization
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public DetailsModel(ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager)
+        public DetailsModel(
+            ApplicationDbContext dbContext,
+            UserManager<ApplicationUser> userManager,
+            IHubContext<ChatHub> hubContext)
         {
             _dbContext = dbContext;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
         public LoginSystem.Models.Organization? Organization { get; set; }
@@ -178,12 +185,23 @@ namespace LoginSystem.Pages.Organization
 
                     foreach (var admin in admins)
                     {
-                        _dbContext.Notifications.Add(new Notification
+                        var notification = new Notification
                         {
                             UserId = admin.UserId,
-                            Message = $"Người dùng {user.DisplayName ?? user.UserName} đã yêu cầu tham gia tổ chức {Organization.Name}.",
+                            Content = $"Người dùng {user.DisplayName ?? user.UserName} đã yêu cầu tham gia tổ chức {Organization.Name}.",
+                            OrganizationId = Organization.Id,
+                            Type = "OrganizationJoin",
                             CreatedAt = DateTime.UtcNow
-                        });
+                        };
+                        _dbContext.Notifications.Add(notification);
+
+                        // Send real-time notification
+                        await _hubContext.Clients.User(admin.UserId).SendAsync("ReceiveNotification",
+                            notification.Id,
+                            notification.Content,
+                            notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                            $"/Organization/Details/{slug}",
+                            notification.Type);
                     }
                 }
                 TempData["SuccessMessage"] = "Yêu cầu tham gia đã được gửi!";
@@ -200,6 +218,25 @@ namespace LoginSystem.Pages.Organization
                 _dbContext.OrganizationMembers.Add(member);
                 user.OrganizationId = Organization.Id;
                 await _userManager.UpdateAsync(user);
+
+                var notification = new Notification
+                {
+                    UserId = userId,
+                    Content = $"Bạn đã tham gia tổ chức {Organization.Name} thành công.",
+                    OrganizationId = Organization.Id,
+                    Type = "OrganizationJoin",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _dbContext.Notifications.Add(notification);
+
+                // Send real-time notification
+                await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification",
+                    notification.Id,
+                    notification.Content,
+                    notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    $"/Organization/Details/{slug}",
+                    notification.Type);
+
                 TempData["SuccessMessage"] = "Tham gia tổ chức thành công!";
             }
 
@@ -245,6 +282,24 @@ namespace LoginSystem.Pages.Organization
                 user.OrganizationId = null;
                 await _userManager.UpdateAsync(user);
             }
+
+            var notification = new Notification
+            {
+                UserId = userId,
+                Content = $"Bạn đã rời khỏi tổ chức {Organization.Name}.",
+                OrganizationId = Organization.Id,
+                Type = "OrganizationJoin",
+                CreatedAt = DateTime.UtcNow
+            };
+            _dbContext.Notifications.Add(notification);
+
+            // Send real-time notification
+            await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             await _dbContext.SaveChangesAsync();
             TempData["SuccessMessage"] = "Bạn đã rời khỏi tổ chức thành công!";
@@ -292,8 +347,37 @@ namespace LoginSystem.Pages.Organization
                 CreatedAt = DateTime.UtcNow
             };
             _dbContext.OrganizationComments.Add(comment);
-            await _dbContext.SaveChangesAsync();
 
+            // Notify admins about the new comment
+            var admins = await _dbContext.OrganizationMembers
+                .Where(m => m.OrganizationId == Organization.Id && m.Role == "Admin")
+                .ToListAsync();
+            var user = await _userManager.FindByIdAsync(userId);
+            foreach (var admin in admins)
+            {
+                if (admin.UserId != userId)
+                {
+                    var notification = new Notification
+                    {
+                        UserId = admin.UserId,
+                        Content = $"Bình luận mới trên tổ chức {Organization.Name} từ {user?.DisplayName ?? user?.UserName}: {CommentInput.Content.Substring(0, Math.Min(50, CommentInput.Content.Length))}...",
+                        OrganizationId = Organization.Id,
+                        Type = "OrganizationComment",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _dbContext.Notifications.Add(notification);
+
+                    // Send real-time notification
+                    await _hubContext.Clients.User(admin.UserId).SendAsync("ReceiveNotification",
+                        notification.Id,
+                        notification.Content,
+                        notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                        $"/Organization/Details/{slug}",
+                        notification.Type);
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
             TempData["SuccessMessage"] = "Đã thêm bình luận!";
             return RedirectToPage(new { slug });
         }
@@ -384,14 +468,26 @@ namespace LoginSystem.Pages.Organization
             _dbContext.OrganizationReports.Add(report);
 
             var superAdmins = await _userManager.GetUsersInRoleAsync("SuperAdmin");
+            var user = await _userManager.FindByIdAsync(userId);
             foreach (var superAdmin in superAdmins)
             {
-                _dbContext.Notifications.Add(new Notification
+                var notification = new Notification
                 {
                     UserId = superAdmin.Id,
-                    Message = $"Tổ chức {Organization.Name} bị báo cáo bởi {userId}: {ReportInput.Reason}",
+                    Content = $"Tổ chức {Organization.Name} bị báo cáo bởi {user?.DisplayName ?? user?.UserName}: {ReportInput.Reason.Substring(0, Math.Min(50, ReportInput.Reason.Length))}...",
+                    OrganizationId = Organization.Id,
+                    Type = "OrganizationReport",
                     CreatedAt = DateTime.UtcNow
-                });
+                };
+                _dbContext.Notifications.Add(notification);
+
+                // Send real-time notification
+                await _hubContext.Clients.User(superAdmin.Id).SendAsync("ReceiveNotification",
+                    notification.Id,
+                    notification.Content,
+                    notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    $"/Organization/Details/{slug}",
+                    notification.Type);
             }
 
             await _dbContext.SaveChangesAsync();

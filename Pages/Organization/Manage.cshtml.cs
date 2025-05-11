@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -9,6 +7,8 @@ using LoginSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using LoginSystem.Hubs;
 
 namespace LoginSystem.Pages.Organization
 {
@@ -17,16 +17,19 @@ namespace LoginSystem.Pages.Organization
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         public ApplicationDbContext DbContext => _dbContext;
         public UserManager<ApplicationUser> UserManager => _userManager;
 
         public ManageModel(
             ApplicationDbContext dbContext,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IHubContext<ChatHub> hubContext)
         {
             _dbContext = dbContext;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
         public LoginSystem.Models.Organization? Organization { get; set; }
@@ -87,7 +90,6 @@ namespace LoginSystem.Pages.Organization
                 return RedirectToPage("/Organization/Details", new { slug });
             }
 
-            // Load Members with User Info
             Members = await _dbContext.OrganizationMembers
                 .Where(m => m.OrganizationId == Organization.Id)
                 .Join(_dbContext.Users,
@@ -104,7 +106,6 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Load Join Requests with User Info
             JoinRequests = await _dbContext.OrganizationJoinRequests
                 .Where(r => r.OrganizationId == Organization.Id && r.Status == "Pending")
                 .Join(_dbContext.Users,
@@ -182,13 +183,24 @@ namespace LoginSystem.Pages.Organization
             await _dbContext.SaveChangesAsync();
 
             var user = await _userManager.FindByIdAsync(memberId);
-            _dbContext.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = memberId,
-                Message = $"Bạn đã được thăng chức thành {member.Role} trong tổ chức {organization.Name}.",
+                Content = $"Bạn đã được thăng chức thành {member.Role} trong tổ chức {organization.Name}.",
+                OrganizationId = organization.Id,
+                Type = "OrganizationRoleChange",
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             TempData["SuccessMessage"] = $"Đã thăng chức {user?.DisplayName ?? user?.UserName} thành {member.Role}!";
             return RedirectToPage(new { slug });
@@ -241,13 +253,24 @@ namespace LoginSystem.Pages.Organization
             await _dbContext.SaveChangesAsync();
 
             var user = await _userManager.FindByIdAsync(memberId);
-            _dbContext.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = memberId,
-                Message = $"Bạn đã bị giáng chức xuống Member trong tổ chức {organization.Name}.",
+                Content = $"Bạn đã bị giáng chức xuống Member trong tổ chức {organization.Name}.",
+                OrganizationId = organization.Id,
+                Type = "OrganizationRoleChange",
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             TempData["SuccessMessage"] = $"Đã giáng chức {user?.DisplayName ?? user?.UserName} thành Member!";
             return RedirectToPage(new { slug });
@@ -297,10 +320,8 @@ namespace LoginSystem.Pages.Organization
                 return RedirectToPage(new { slug });
             }
 
-            // Xóa bản ghi trong OrganizationMembers
             _dbContext.OrganizationMembers.Remove(member);
 
-            // Xóa tất cả yêu cầu tham gia của user liên quan đến tổ chức này
             var joinRequests = await _dbContext.OrganizationJoinRequests
                 .Where(r => r.UserId == memberId && r.OrganizationId == organization.Id)
                 .ToListAsync();
@@ -309,7 +330,6 @@ namespace LoginSystem.Pages.Organization
                 _dbContext.OrganizationJoinRequests.RemoveRange(joinRequests);
             }
 
-            // Xóa tất cả đánh giá của user liên quan đến tổ chức này
             var ratings = await _dbContext.OrganizationRatings
                 .Where(r => r.UserId == memberId && r.OrganizationId == organization.Id)
                 .ToListAsync();
@@ -318,7 +338,6 @@ namespace LoginSystem.Pages.Organization
                 _dbContext.OrganizationRatings.RemoveRange(ratings);
             }
 
-            // Đặt lại OrganizationId của user
             var user = await _userManager.FindByIdAsync(memberId);
             if (user != null)
             {
@@ -326,15 +345,24 @@ namespace LoginSystem.Pages.Organization
                 await _userManager.UpdateAsync(user);
             }
 
-            // Gửi thông báo
-            _dbContext.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = memberId,
-                Message = $"Bạn đã bị xóa khỏi tổ chức {organization.Name}.",
+                Content = $"Bạn đã bị xóa khỏi tổ chức {organization.Name}.",
+                OrganizationId = organization.Id,
+                Type = "OrganizationRoleChange",
                 CreatedAt = DateTime.UtcNow
-            });
-
+            };
+            _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             TempData["SuccessMessage"] = $"Đã xóa thành viên {user?.DisplayName ?? user?.UserName}!";
             return RedirectToPage(new { slug });
@@ -393,7 +421,6 @@ namespace LoginSystem.Pages.Organization
                 return RedirectToPage(new { slug });
             }
 
-            // Kiểm tra xem user có còn trong OrganizationMembers không
             var existingMember = await _dbContext.OrganizationMembers
                 .FirstOrDefaultAsync(m => m.UserId == user.Id && m.OrganizationId == organization.Id);
             if (existingMember != null)
@@ -424,13 +451,24 @@ namespace LoginSystem.Pages.Organization
             user.OrganizationId = organization.Id;
             await _userManager.UpdateAsync(user);
 
-            _dbContext.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = request.UserId,
-                Message = $"Yêu cầu tham gia tổ chức {organization.Name} của bạn đã được chấp nhận.",
+                Content = $"Yêu cầu tham gia tổ chức {organization.Name} của bạn đã được chấp nhận.",
+                OrganizationId = organization.Id,
+                Type = "OrganizationJoin",
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(request.UserId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             TempData["SuccessMessage"] = $"Đã chấp nhận yêu cầu tham gia của {user.DisplayName ?? user.UserName}!";
             return RedirectToPage(new { slug });
@@ -489,7 +527,6 @@ namespace LoginSystem.Pages.Organization
                 return RedirectToPage(new { slug });
             }
 
-            // Kiểm tra xem user có còn trong OrganizationMembers không
             var existingMember = await _dbContext.OrganizationMembers
                 .FirstOrDefaultAsync(m => m.UserId == user.Id && m.OrganizationId == organization.Id);
             if (existingMember != null)
@@ -503,13 +540,24 @@ namespace LoginSystem.Pages.Organization
             request.Status = "Rejected";
             await _dbContext.SaveChangesAsync();
 
-            _dbContext.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = request.UserId,
-                Message = $"Yêu cầu tham gia tổ chức {organization.Name} của bạn đã bị từ chối.",
+                Content = $"Yêu cầu tham gia tổ chức {organization.Name} của bạn đã bị từ chối.",
+                OrganizationId = organization.Id,
+                Type = "OrganizationJoin",
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(request.UserId).SendAsync("ReceiveNotification",
+                notification.Id,
+                notification.Content,
+                notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                $"/Organization/Details/{slug}",
+                notification.Type);
 
             TempData["SuccessMessage"] = $"Đã từ chối yêu cầu tham gia của {user.DisplayName ?? user.UserName}!";
             return RedirectToPage(new { slug });

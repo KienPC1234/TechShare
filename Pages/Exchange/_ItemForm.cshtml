@@ -1,0 +1,70 @@
+﻿@model LoginSystem.Pages.Exchange.CreateItemModel
+
+<form method="post" enctype="multipart/form-data" id="createItemForm">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="Item.Id" />
+    <input type="hidden" asp-for="Item.OwnerId" value="@(Model.Item.OwnerId)" />
+    <input type="hidden" asp-for="Item.OrganizationId" value="@(Model.Item.OrganizationId)" />
+
+    <div class="form-group mb-3">
+        <label asp-for="Item.Title" class="form-label">Tiêu đề</label>
+        <input asp-for="Item.Title" class="form-control" placeholder="Nhập tiêu đề mặt hàng" />
+        <span asp-validation-for="Item.Title" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Item.Description" class="form-label">Mô tả</label>
+        <textarea asp-for="Item.Description" class="form-control summernote" rows="5" placeholder="Mô tả chi tiết về mặt hàng"></textarea>
+        <span asp-validation-for="Item.Description" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Item.Terms" class="form-label">Điều khoản</label>
+        <textarea asp-for="Item.Terms" class="form-control" rows="3" placeholder="Điều khoản trao đổi"></textarea>
+        <span asp-validation-for="Item.Terms" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Item.QuantityAvailable" class="form-label">Số lượng</label>
+        <input asp-for="Item.QuantityAvailable" class="form-control" type="number" min="0" placeholder="Số lượng khả dụng" />
+        <span asp-validation-for="Item.QuantityAvailable" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Item.CategoryId" class="form-label">Danh mục</label>
+        <select asp-for="Item.CategoryId" class="form-control" asp-items="Model.Categories" required>
+            <option value="" disabled selected>-- Chọn danh mục --</option>
+            <option value="add-new">Thêm danh mục mới</option>
+        </select>
+        <span asp-validation-for="Item.CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Tags" class="form-label">Thẻ (Tags)</label>
+        <input asp-for="Tags" class="form-control" placeholder="Nhập các thẻ, cách nhau bằng dấu phẩy" />
+        <small class="form-text text-muted">Ví dụ: sách, đồ dùng, học tập</small>
+        <span asp-validation-for="Tags" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Images" class="form-label">Hình ảnh (tối đa 5, JPG/PNG, <5MB)</label>
+        <input asp-for="Images" class="form-control" type="file" accept=".jpg,.jpeg,.png" multiple />
+        <span asp-validation-for="Images" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <label asp-for="Video" class="form-label">Video (MP4, <50MB)</label>
+        <input asp-for="Video" class="form-control" type="file" accept=".mp4" />
+        <span asp-validation-for="Video" class="text-danger"></span>
+    </div>
+
+    <div class="form-group mb-3">
+        <div class="form-check">
+            <input asp-for="Item.IsPrivate" class="form-check-input" type="checkbox" />
+            <label asp-for="Item.IsPrivate" class="form-check-label">Đặt là riêng tư</label>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Tạo Mặt Hàng</button>
+    <a asp-page="/Exchange/Index" class="btn btn-secondary">Hủy</a>
+</form>

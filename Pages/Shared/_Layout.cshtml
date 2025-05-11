@@ -1,4 +1,9 @@
 ﻿@using LoginSystem.Data
+@using LoginSystem.Models
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -6,25 +11,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - TechShare</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" />
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1 0 auto;
+        }
+
+        footer {
+            flex-shrink: 0;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
     <header>
         <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
-            <div class="container">
+            <div class="container-fluid">
                 <a class="navbar-brand fw-bold" asp-page="/Index">TechShare</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="mainNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item"><a class="nav-link" asp-page="/Index">Trang Chủ</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-page="/Exchange/Search">Tìm Kiếm Mặt Hàng</a></li>
                         <li class="nav-item"><a class="nav-link" asp-page="/Organization/Search">Tìm Kiếm Tổ Chức</a></li>
                         @if (User.Identity.IsAuthenticated)
                         {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Exchange/CreateItem">Tạo Mặt Hàng</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Messages/Index">Tin Nhắn</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Exchange/UserActivity">Hoạt Động Của Tôi</a></li>
                             if (User.FindFirst("OrganizationId")?.Value != null)
                             {
                                 <li class="nav-item"><a class="nav-link" asp-page="/Organization/Details" asp-route-slug="@(await GetOrgSlug(User.FindFirst("OrganizationId")?.Value))">Tổ Chức Của Tôi</a></li>
@@ -33,18 +59,124 @@
                             {
                                 <li class="nav-item"><a class="nav-link" asp-page="/Organization/Create">Tạo Tổ Chức</a></li>
                             }
-                        }
-                        @if (User.IsInRole("SuperAdmin"))
-                        {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Dashboard">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-page="/AdminRequests">Yêu Cầu Admin</a></li>
+                            if (User.IsInRole("Delivery"))
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-page="/Exchange/DeliveryOrders">Đơn Hàng Vận Chuyển</a></li>
+                            }
+                            if (User.IsInRole("SuperAdmin"))
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-page="/Dashboard">Dashboard</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-page="/AdminRequests">Yêu Cầu Admin</a></li>
+                            }
                         }
                     </ul>
-                    <ul class="navbar-nav">
+                    <ul class="navbar-nav align-items-center">
                         @if (User.Identity.IsAuthenticated)
                         {
+                            <li class="nav-item dropdown me-2">
+                                <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-bell"></i>
+                                    @{
+                                        var unreadNotifications = await DbContext.Notifications
+                                        .Where(n => n.UserId == UserManager.GetUserId(User) && !n.IsRead)
+                                        .CountAsync();
+                                    }
+                                    @if (unreadNotifications > 0)
+                                    {
+                                        <span id="notification-count" class="badge bg-danger rounded-pill position-absolute" style="top: 5px; right: -10px;">@unreadNotifications</span>
+                                    }
+                                    else
+                                    {
+                                        <span id="notification-count" class="badge bg-danger rounded-pill position-absolute" style="top: 5px; right: -10px; display: none;"></span>
+                                    }
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" style="min-width: 300px; max-height: 400px; overflow-y: auto;">
+                                    @{
+                                        var notifications = await DbContext.Notifications
+                                        .Where(n => n.UserId == UserManager.GetUserId(User))
+                                        .OrderByDescending(n => n.CreatedAt)
+                                        .Take(5)
+                                        .ToListAsync();
+                                    }
+                                    @if (notifications.Any())
+                                    {
+                                        foreach (var notification in notifications)
+                                        {
+                                            string redirectUrl = notification.Type switch
+                                            {
+                                                // Exchange Item Notifications
+                                                "ItemComment" => $"/Exchange/Item/{notification.ItemId}",
+                                                // Order Notifications
+                                                "Order" => $"/Exchange/OrderDetails{notification.OrderId}",
+                                                // Organization Notifications
+                                                "OrganizationJoin" or "OrganizationRoleChange" or "OrganizationComment" or "OrganizationReport" => $"/Organization/Details?slug={await Model.GetOrganizationSlugAsync(notification.OrganizationId)}",
+                                                // Fallback for unknown types
+                                                _ => "#"
+                                            };
+                                            <li>
+                                                <a class="dropdown-item notification-item" href="@redirectUrl" data-notification-id="@notification.Id">
+                                                    <small>@notification.Content</small><br />
+                                                    <small class="text-muted">@notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                                </a>
+                                            </li>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <li><span class="dropdown-item text-muted">Không có thông báo</span></li>
+                                    }
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li><a class="dropdown-item text-center" asp-page="/Notifications">Xem Tất Cả</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown me-2">
+                                <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-envelope"></i>
+                                    @{
+                                        var unreadMessages = await DbContext.Messages
+                                        .Where(m => m.ReceiverId == UserManager.GetUserId(User) && !m.IsRead)
+                                        .CountAsync();
+                                    }
+                                    @if (unreadMessages > 0)
+                                    {
+                                        <span id="message-count" class="badge bg-primary rounded-pill position-absolute" style="top: 5px; right: -10px;">@unreadMessages</span>
+                                    }
+                                    else
+                                    {
+                                        <span id="message-count" class="badge bg-primary rounded-pill position-absolute" style="top: 5px; right: -10px; display: none;"></span>
+                                    }
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" style="min-width: 300px; max-height: 400px; overflow-y: auto;">
+                                    @{
+                                        var messages = await DbContext.Messages
+                                        .Include(m => m.Sender)
+                                        .Where(m => m.ReceiverId == UserManager.GetUserId(User))
+                                        .OrderByDescending(m => m.CreatedAt)
+                                        .Take(5)
+                                        .ToListAsync();
+                                    }
+                                    @if (messages.Any())
+                                    {
+                                        foreach (var message in messages)
+                                        {
+                                            <li>
+                                                <a class="dropdown-item message-item" asp-page="/Messages/Index" asp-route-userId="@message.SenderId" data-message-id="@message.Id">
+                                                    <small><strong>@message.Sender.DisplayName</strong>: @message.Content.Substring(0, Math.Min(50, message.Content.Length))@(message.Content.Length > 50 ? "..." : "")</small><br />
+                                                    <small class="text-muted">@message.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                                </a>
+                                            </li>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <li><span class="dropdown-item text-muted">Không có tin nhắn</span></li>
+                                    }
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li><a class="dropdown-item text-center" asp-page="/Messages/Index">Xem Tất Cả</a></li>
+                                </ul>
+                            </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <img src="@(User.FindFirst("AvatarUrl")?.Value ?? "/images/default-avatar.png")" alt="Avatar" class="rounded-circle me-2" style="width: 30px; height: 30px;" />
                                     <span>@User.FindFirst("Username")?.Value</span>
                                 </a>
@@ -69,22 +201,147 @@
         @RenderBody()
     </main>
 
+    <footer class="bg-light text-center py-3">
+        <p>© @DateTime.Now.Year TechShare. Tất cả quyền được bảo lưu.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.validate.unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
-    @section Scripts {
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.validate/1.19.3/jquery.validate.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.validate.unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
-    }
-    @functions {
-        private async Task<string> GetOrgSlug(string? orgId)
-        {
-            if (string.IsNullOrEmpty(orgId)) return string.Empty;
-            var dbContext = Context.RequestServices.GetService<ApplicationDbContext>();
-            var org = await dbContext.Organizations.FindAsync(orgId);
-            return org?.Slug ?? string.Empty;
+    <script>
+        $(document).ready(function () {
+            // Mark notification as read
+            $(document).on('click', '.notification-item', function (e) {
+                e.preventDefault();
+                var notificationId = $(this).data('notification-id');
+                var redirectUrl = $(this).attr('href');
+                $.ajax({
+                    url: '/Notifications/MarkAsRead',
+                    type: 'POST',
+                    data: { id: notificationId },
+                    success: function () {
+                        updateNotificationCount();
+                        window.location.href = redirectUrl;
+                    },
+                    error: function () {
+                        window.location.href = redirectUrl;
+                    }
+                });
+            });
+
+            // Mark message as read
+            $(document).on('click', '.message-item', function (e) {
+                e.preventDefault();
+                var messageId = $(this).data('message-id');
+                var redirectUrl = $(this).attr('href');
+                $.ajax({
+                    url: '/Messages/MarkAsRead',
+                    type: 'POST',
+                    data: { id: messageId },
+                    success: function () {
+                        updateMessageCount();
+                        window.location.href = redirectUrl;
+                    },
+                    error: function () {
+                        window.location.href = redirectUrl;
+                    }
+                });
+            });
+
+            // SignalR connection
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("ReceiveMessage", function (senderName, message, createdAt) {
+                const userId = "@UserManager.GetUserId(User)";
+                if (userId) {
+                    const msgItem = `<li><a class="dropdown-item message-item" asp-page="/Messages/Index" asp-route-userId="${senderName}" data-message-id="new"><small><strong>${senderName}</strong>: ${message.substring(0, 50)}${message.length > 50 ? "..." : ""}</small><br /><small class="text-muted">${createdAt}</small></a></li>`;
+                    const $dropdown = $('.dropdown-menu:contains("Xem Tất Cả")').filter(function () {
+                        return $(this).find('a[href="/Messages/Index"]').length > 0;
+                    });
+                    const $items = $dropdown.find('.message-item');
+                    if ($items.length >= 5) {
+                        $items.last().remove();
+                    }
+                    $dropdown.prepend(msgItem);
+                    updateMessageCount();
+                }
+            });
+
+            connection.on("ReceiveNotification", function (notificationId, content, createdAt, redirectUrl, type) {
+                const notificationItem = `
+                    <li>
+                        <a class="dropdown-item notification-item" href="${redirectUrl}" data-notification-id="${notificationId}">
+                            <small>${content}</small><br />
+                            <small class="text-muted">${createdAt}</small>
+                        </a>
+                    </li>`;
+                const $dropdown = $('.dropdown-menu:contains("Xem Tất Cả")').filter(function () {
+                    return $(this).find('a[href="/Notifications"]').length > 0;
+                });
+                const $items = $dropdown.find('.notification-item');
+                if ($items.length >= 5) {
+                    $items.last().remove();
+                }
+                $dropdown.prepend(notificationItem);
+                updateNotificationCount();
+            });
+
+            connection.start().catch(function (err) {
+                console.error("SignalR Connection Error: ", err.toString());
+            });
+
+            function updateNotificationCount() {
+                $.get('/Notifications/GetUnreadCount', function (count) {
+                    const badge = $('#notification-count');
+                    if (count > 0) {
+                        badge.text(count).show();
+                    } else {
+                        badge.hide();
+                    }
+                });
+            }
+
+            function updateMessageCount() {
+                $.get('/Messages/GetUnreadCount', function (count) {
+                    const badge = $('#message-count');
+                    if (count > 0) {
+                        badge.text(count).show();
+                    } else {
+                        badge.hide();
+                    }
+                });
+            }
+
+            updateNotificationCount();
+            updateMessageCount();
+        });
+
+        @functions {
+            private async Task<string> GetOrgSlug(string orgId)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(orgId)) return "#";
+                    var org = await DbContext.Organizations
+                        .AsNoTracking()
+                        .Where(o => o.Id == orgId)
+                        .Select(o => o.Slug)
+                        .FirstOrDefaultAsync();
+                    return org ?? "#";
+                }
+                catch
+                {
+                    return "#";
+                }
+            }
         }
-    }
+    </script>
 </body>
 </html>

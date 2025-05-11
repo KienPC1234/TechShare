@@ -1,0 +1,96 @@
+﻿@page
+@model LoginSystem.Pages.Exchange.CreateItemModel
+@{
+    ViewData["Title"] = "Tạo Mặt Hàng Trao Đổi";
+}
+
+<div class="container mt-4">
+    <h2>@ViewData["Title"]</h2>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <partial name="_ItemForm" model="Model" />
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Initialize Summernote
+            $('.summernote').summernote({
+                height: 200,
+                placeholder: 'Mô tả chi tiết về mặt hàng',
+                toolbar: [
+                    ['style', ['style']],
+                    ['font', ['bold', 'underline', 'clear']],
+                    ['color', ['color']],
+                    ['para', ['ul', 'ol', 'paragraph']],
+                    ['table', ['table']],
+                    ['insert', ['link', 'picture']],
+                    ['view', ['fullscreen', 'codeview', 'help']]
+                ],
+                callbacks: {
+                    onChange: function (contents) {
+                        $('textarea[name="Item.Description"]').val(contents);
+                    }
+                }
+            });
+
+            // Handle category selection
+            $('#Item_CategoryId').change(function () {
+                if ($(this).val() === 'add-new') {
+                    // Open AddCategory page in a new window
+                    window.open('@Url.Page("/Exchange/AddCategory")', 'AddCategoryWindow', 'width=600,height=400');
+                    $(this).val(''); // Reset dropdown
+                }
+            });
+
+            // Listen for message from AddCategory window
+            window.addEventListener('message', function (event) {
+                if (event.data.type === 'categoryAdded') {
+                    var newCategory = event.data.category;
+                    $('#Item_CategoryId').append(
+                        $('<option>', {
+                            value: newCategory.id,
+                            text: newCategory.name
+                        })
+                    );
+                    $('#Item_CategoryId').val(newCategory.id);
+                }
+            });
+
+            // Form validation
+            $('#createItemForm').validate({
+                errorElement: 'span',
+                errorClass: 'text-danger',
+                highlight: function (element) {
+                    $(element).addClass('is-invalid');
+                },
+                unhighlight: function (element) {
+                    $(element).removeClass('is-invalid');
+                },
+                rules: {
+                    'Item.Title': { required: true, maxlength: 200 },
+                    'Item.Description': { required: true, maxlength: 5000 },
+                    'Item.Terms': { required: true, maxlength: 1000 },
+                    'Item.QuantityAvailable': { required: true, min: 0 },
+                    'Item.CategoryId': { required: true }
+                },
+                messages: {
+                    'Item.Title': { required: 'Tiêu đề là bắt buộc.', maxlength: 'Tiêu đề không được vượt quá 200 ký tự.' },
+                    'Item.Description': { required: 'Mô tả là bắt buộc.', maxlength: 'Mô tả không được vượt quá 5000 ký tự.' },
+                    'Item.Terms': { required: 'Điều khoản là bắt buộc.', maxlength: 'Điều khoản không được vượt quá 1000 ký tự.' },
+                    'Item.QuantityAvailable': { required: 'Số lượng là bắt buộc.', min: 'Số lượng phải lớn hơn hoặc bằng 0.' },
+                    'Item.CategoryId': { required: 'Vui lòng chọn danh mục.' }
+                }
+            });
+        });
+    </script>
+}

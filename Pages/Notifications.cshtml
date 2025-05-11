@@ -1,0 +1,169 @@
+﻿@page
+@model LoginSystem.Pages.NotificationsModel
+@{
+    ViewData["Title"] = "Thông Báo";
+}
+
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Thông Báo</h1>
+        <div class="d-flex justify-content-end mb-3">
+            <button id="delete-all-notifications" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal" @(Model.Notifications.Any() ? "" : "disabled")>Xóa Tất Cả</button>
+        </div>
+        @if (Model.Notifications.Any())
+        {
+            <div class="list-group">
+                @foreach (var notification in Model.Notifications)
+                {
+                    string redirectUrl = notification.Type switch
+                    {
+                        // Exchange Item Notifications
+                        "ItemComment" => $"/Exchange/Item/{notification.ItemId}",
+                        // Order Notifications
+                        "Order" => $"/Exchange/OrderDetails{notification.OrderId}",
+                        // Organization Notifications
+                        "OrganizationJoin" or "OrganizationRoleChange" or "OrganizationComment" or "OrganizationReport" => $"/Organization/Details?slug={await Model.GetOrganizationSlugAsync(notification.OrganizationId)}",
+                        // Fallback for unknown types
+                        _ => "#"
+                    };
+                    <a href="@redirectUrl" class="list-group-item list-group-item-action notification-item @(notification.IsRead ? "" : "bg-light")" data-notification-id="@notification.Id">
+                        <div class="d-flex w-100 justify-content-between">
+                            <p class="mb-1">@notification.Content</p>
+                            <small>@notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                        </div>
+                    </a>
+                }
+            </div>
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" asp-page="/Notifications" asp-route-page="@(Model.CurrentPage - 1)">Trước</a>
+                    </li>
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <li class="page-item @(Model.CurrentPage == i ? "active" : "")">
+                            <a class="page-link" asp-page="/Notifications" asp-route-page="@i">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-page="/Notifications" asp-route-page="@(Model.CurrentPage + 1)">Sau</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+        else
+        {
+            <p class="text-muted">Không có thông báo nào.</p>
+        }
+    </div>
+</div>
+
+<!-- Delete All Confirmation Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteAllModalLabel">Xác Nhận Xóa Tất Cả Thông Báo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa tất cả thông báo? Hành động này không thể hoàn tác.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-all">Xóa Tất Cả</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // SignalR connection
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("ReceiveNotification", function (notificationId, content, createdAt, redirectUrl, type) {
+                const isReadClass = "bg-light"; // Unread notifications have bg-light
+                const notificationHtml = `
+                    <a href="${redirectUrl}" class="list-group-item list-group-item-action notification-item ${isReadClass}" data-notification-id="${notificationId}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <p class="mb-1">${content}</p>
+                            <small>${createdAt}</small>
+                        </div>
+                    </a>`;
+                $(".list-group").prepend(notificationHtml);
+                $("#delete-all-notifications").removeAttr("disabled");
+                updateNotificationCount();
+            });
+
+            connection.start().catch(function (err) {
+                console.error("SignalR connection failed: ", err.toString());
+            });
+
+            // Mark notification as read
+            $(document).on('click', '.notification-item', function (e) {
+                e.preventDefault();
+                var notificationId = $(this).data('notification-id');
+                var redirectUrl = $(this).attr('href');
+                $.ajax({
+                    url: '/Notifications/MarkAsRead',
+                    type: 'POST',
+                    data: { id: notificationId },
+                    success: function () {
+                        $(e.target).closest('.notification-item').removeClass('bg-light');
+                        updateNotificationCount();
+                        window.location.href = redirectUrl;
+                    },
+                    error: function () {
+                        window.location.href = redirectUrl;
+                    }
+                });
+            });
+
+            // Confirm delete all notifications
+            $("#confirm-delete-all").click(function () {
+                $.ajax({
+                    url: '/Notifications/DeleteAll',
+                    type: 'POST',
+                    success: function (response) {
+                        if (response.success) {
+                            $(".list-group").empty();
+                            $(".list-group").after('<p class="text-muted">Không có thông báo nào.</p>');
+                            $("#delete-all-notifications").attr("disabled", "disabled");
+                            updateNotificationCount();
+                            $("#deleteAllModal").modal('hide');
+                            alert(response.message);
+                        } else {
+                            $("#deleteAllModal").modal('hide');
+                            alert(response.message);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $("#deleteAllModal").modal('hide');
+                        alert("Đã xảy ra lỗi khi xóa thông báo: " + error);
+                    }
+                });
+            });
+
+            // Update notification count in navbar
+            function updateNotificationCount() {
+                $.get('/Notifications/GetUnreadCount', function (count) {
+                    const badge = $('#notification-count');
+                    if (count > 0) {
+                        badge.text(count).show();
+                    } else {
+                        badge.hide();
+                    }
+                });
+            }
+
+            // Initial notification count
+            updateNotificationCount();
+        });
+    </script>
+}

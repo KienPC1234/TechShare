@@ -3,6 +3,7 @@ using System;
 using LoginSystem.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,62 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace TechShare.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250510135114_FixSchema")]
+    partial class FixSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.15");
-
-            modelBuilder.Entity("BorrowOrder", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BorrowerId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DeliveryAgentId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ItemId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PaymentInfo")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ShippingAddress")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("TermsAccepted")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BorrowerId");
-
-                    b.HasIndex("DeliveryAgentId");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("BorrowOrders");
-                });
 
             modelBuilder.Entity("LoginSystem.Models.ApplicationUser", b =>
                 {
@@ -147,6 +100,56 @@ namespace TechShare.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("LoginSystem.Models.BorrowOrder", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BorrowerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveryAgentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ItemId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentInfo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShippingAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("TermsAccepted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BorrowerId");
+
+                    b.HasIndex("DeliveryAgentId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("BorrowOrders");
                 });
 
             modelBuilder.Entity("LoginSystem.Models.ExchangeItem", b =>
@@ -334,41 +337,6 @@ namespace TechShare.Migrations
                     b.ToTable("ItemTags");
                 });
 
-            modelBuilder.Entity("LoginSystem.Models.Message", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ReceiverId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SenderId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("ReceiverId");
-
-                    b.HasIndex("SenderId");
-
-                    b.ToTable("Messages");
-                });
-
             modelBuilder.Entity("LoginSystem.Models.Notification", b =>
                 {
                     b.Property<string>("Id")
@@ -376,6 +344,7 @@ namespace TechShare.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
@@ -390,12 +359,6 @@ namespace TechShare.Migrations
                     b.Property<string>("OrderId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OrganizationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Type")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -404,11 +367,35 @@ namespace TechShare.Migrations
 
                     b.HasIndex("CreatedAt");
 
-                    b.HasIndex("OrganizationId");
-
                     b.HasIndex("UserId");
 
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("LoginSystem.Models.Notification_TOCHUC", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notification_TOCHUC");
                 });
 
             modelBuilder.Entity("LoginSystem.Models.Organization", b =>
@@ -724,38 +711,7 @@ namespace TechShare.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("OrderStatusHistory", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ChangedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OrderId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChangedAt");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("StatusHistory");
-                });
-
-            modelBuilder.Entity("BorrowOrder", b =>
+            modelBuilder.Entity("LoginSystem.Models.BorrowOrder", b =>
                 {
                     b.HasOne("LoginSystem.Models.ApplicationUser", "Borrower")
                         .WithMany()
@@ -866,23 +822,24 @@ namespace TechShare.Migrations
                     b.Navigation("Item");
                 });
 
-            modelBuilder.Entity("LoginSystem.Models.Message", b =>
+            modelBuilder.Entity("LoginSystem.Models.Notification", b =>
                 {
-                    b.HasOne("LoginSystem.Models.ApplicationUser", "Receiver")
+                    b.HasOne("LoginSystem.Models.ApplicationUser", "User")
                         .WithMany()
-                        .HasForeignKey("ReceiverId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("LoginSystem.Models.ApplicationUser", "Sender")
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LoginSystem.Models.Notification_TOCHUC", b =>
+                {
+                    b.HasOne("LoginSystem.Models.ApplicationUser", null)
                         .WithMany()
-                        .HasForeignKey("SenderId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("LoginSystem.Models.OrganizationComment", b =>
@@ -1009,22 +966,6 @@ namespace TechShare.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("OrderStatusHistory", b =>
-                {
-                    b.HasOne("BorrowOrder", "Order")
-                        .WithMany("StatusHistory")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("BorrowOrder", b =>
-                {
-                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("LoginSystem.Models.ExchangeItem", b =>

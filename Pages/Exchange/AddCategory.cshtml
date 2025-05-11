@@ -1,0 +1,69 @@
+﻿@page
+@model LoginSystem.Pages.Exchange.AddCategoryModel
+@{
+    ViewData["Title"] = "Thêm Danh Mục Mới";
+}
+
+<div class="container mt-4">
+    <h2>@ViewData["Title"]</h2>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    @if (Model.IsAuthorized)
+    {
+        <form method="post" id="addCategoryForm">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-group mb-3">
+                <label asp-for="NewCategory.Name" class="form-label">Tên danh mục</label>
+                <input asp-for="NewCategory.Name" class="form-control" placeholder="Nhập tên danh mục" />
+                <span asp-validation-for="NewCategory.Name" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="NewCategory.Description" class="form-label">Mô tả</label>
+                <textarea asp-for="NewCategory.Description" class="form-control" rows="3" placeholder="Mô tả danh mục (tùy chọn)"></textarea>
+                <span asp-validation-for="NewCategory.Description" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Lưu</button>
+            <button type="button" class="btn btn-secondary" onclick="window.close()">Hủy</button>
+        </form>
+    }
+    else
+    {
+        <div class="alert alert-warning" role="alert">
+            Bạn không có quyền tạo danh mục mới. Vui lòng liên hệ SuperAdmin để được hỗ trợ.
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="window.close()">Đóng</button>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+            $('#addCategoryForm').on('submit', function (e) {
+                if ($(this).valid()) {
+                    // Send message to parent window and close
+                    window.opener.postMessage({
+                        type: 'categoryAdded',
+                        category: {
+                            id: '@Guid.NewGuid().ToString()', // Temporary ID, will be updated by server
+                            name: $('#NewCategory_Name').val()
+                        }
+                    }, '*');
+                    // Delay closing to ensure message is sent
+                    setTimeout(function () {
+                        window.close();
+                    }, 100);
+                }
+            });
+        });
+    </script>
+}

@@ -1,0 +1,118 @@
+﻿@page
+@model LoginSystem.Pages.Exchange.SearchModel
+@using Microsoft.AspNetCore.Identity
+@using Ganss.Xss
+@using HtmlAgilityPack
+@using System.Text.RegularExpressions
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var sanitizer = new HtmlSanitizer();
+    sanitizer.AllowedTags.Clear();
+    sanitizer.AllowedTags.Add("p");
+    sanitizer.AllowedTags.Add("b");
+    sanitizer.AllowedTags.Add("strong");
+    sanitizer.AllowedTags.Add("i");
+    sanitizer.AllowedTags.Add("em");
+    sanitizer.AllowedTags.Add("u");
+    sanitizer.AllowedTags.Add("br");
+    sanitizer.AllowedTags.Add("ul");
+    sanitizer.AllowedTags.Add("ol");
+    sanitizer.AllowedTags.Add("li");
+    sanitizer.AllowedTags.Add("a");
+    sanitizer.AllowedTags.Add("span");
+    sanitizer.AllowedAttributes.Add("href");
+    sanitizer.AllowedAttributes.Add("title");
+    sanitizer.AllowedAttributes.Add("style");
+
+    string GetShortDescription(string html, string query)
+    {
+        var htmlDoc = new HtmlDocument();
+        htmlDoc.LoadHtml(string.IsNullOrEmpty(html) ? "<p></p>" : html);
+        var plainText = htmlDoc.DocumentNode.InnerText;
+        if (string.IsNullOrEmpty(plainText)) return "<p>Không có mô tả.</p>";
+
+        if (string.IsNullOrEmpty(query))
+        {
+            return $"<p>{(plainText.Length > 100 ? plainText.Substring(0, 100) + "..." : plainText)}</p>";
+        }
+
+        var queryWords = Regex.Split(query.ToLower(), @"\s+");
+        var index = -1;
+        foreach (var word in queryWords)
+        {
+            index = plainText.ToLower().IndexOf(word, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0) break;
+        }
+
+        if (index < 0) index = 0;
+        var start = Math.Max(0, index - 50);
+        var length = Math.Min(100, plainText.Length - start);
+        var shortText = start > 0 ? "..." : "";
+        shortText += plainText.Substring(start, length);
+        if (start + length < plainText.Length) shortText += "...";
+        return $"<p>{shortText}</p>";
+    }
+}
+
+@{
+    ViewData["Title"] = "Tìm Kiếm Mặt Hàng";
+}
+
+<div class="container mt-4">
+    <h2>@ViewData["Title"]</h2>
+
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" asp-for="Query" class="form-control" placeholder="Nhập từ khóa tìm kiếm..." />
+            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    @if (Model.Results.Any())
+    {
+        <h4>Kết quả tìm kiếm: @Model.Results.Count mặt hàng</h4>
+        <div class="row">
+            @foreach (var result in Model.Results)
+            {
+                var sanitizedDescription = sanitizer.Sanitize(result.Item.Description ?? "<p></p>");
+                var shortDescription = GetShortDescription(sanitizedDescription, Model.Query);
+
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        @if (result.Item.MediaItems.Any(m => m.MediaType == LoginSystem.Models.MediaType.Image))
+                        {
+                            <img src="@result.Item.MediaItems.First(m => m.MediaType == LoginSystem.Models.MediaType.Image).Url" class="card-img-top" alt="@result.Item.Title" style="height: 200px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <img src="/images/placeholder.jpg" class="card-img-top" alt="No image" style="height: 200px; object-fit: cover;" />
+                        }
+                        <div class="card-body">
+                            <h5 class="card-title">@result.Item.Title</h5>
+                            <div class="card-text">
+                                @Html.Raw(shortDescription)
+                            </div>
+                            <p class="card-text"><strong>Danh mục:</strong> @result.Item.Category?.Name</p>
+                            <p class="card-text"><strong>Số lượng:</strong> @result.Item.QuantityAvailable</p>
+                            <p class="card-text"><strong>Điểm đánh giá:</strong> @(result.AvgRating.ToString("F1"))</p>
+                            <p class="card-text"><strong>Độ liên quan:</strong> @(result.RelevanceScore.ToString("F2"))</p>
+                            <a asp-page="/Exchange/Item" asp-route-id="@result.Item.Id" class="btn btn-primary">Xem chi tiết</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p>Không tìm thấy mặt hàng nào phù hợp.</p>
+    }
+</div>

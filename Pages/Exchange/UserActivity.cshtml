@@ -1,0 +1,70 @@
+﻿@page
+@model LoginSystem.Pages.Exchange.UserActivityModel
+@{
+    ViewData["Title"] = "Hoạt Động Của Tôi";
+}
+
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Hoạt Động Của Tôi</h1>
+        <ul class="nav nav-tabs mb-4">
+            <li class="nav-item">
+                <a class="nav-link @(!Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="history">Lịch Sử Mượn</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="ongoing">Đơn Hàng Đang Giao</a>
+            </li>
+        </ul>
+
+        @if (Model.IsOngoingOrdersTab)
+        {
+            <h2>Đơn Hàng Đang Giao</h2>
+            @if (Model.OngoingOrders.Any())
+            {
+                <div class="list-group">
+                    @foreach (var order in Model.OngoingOrders)
+                    {
+                        <a href="/Exchange/OrderDetails/@order.Id" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">Đơn Hàng #@order.Id</h5>
+                                <small>@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                            <p class="mb-1">Mặt Hàng: @order.Item?.Title</p>
+                            <p class="mb-1">Trạng Thái: @order.Status</p>
+                            <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Không có đơn hàng đang giao.</p>
+            }
+        }
+        else
+        {
+            <h2>Lịch Sử Mượn</h2>
+            @if (Model.BorrowingHistory.Any())
+            {
+                <div class="list-group">
+                    @foreach (var order in Model.BorrowingHistory)
+                    {
+                        <a href="/Exchange/OrderDetails/@order.Id" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">Đơn Hàng #@order.Id</h5>
+                                <small>@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                            <p class="mb-1">Mặt Hàng: @order.Item?.Title</p>
+                            <p class="mb-1">Trạng Thái: @order.Status</p>
+                            <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Không có lịch sử mượn.</p>
+            }
+        }
+    </div>
+</div>
