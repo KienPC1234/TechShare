@@ -4,67 +4,124 @@
     ViewData["Title"] = "Hoạt Động Của Tôi";
 }
 
-<div class="row">
-    <div class="col-12">
-        <h1 class="mb-4">Hoạt Động Của Tôi</h1>
-        <ul class="nav nav-tabs mb-4">
-            <li class="nav-item">
-                <a class="nav-link @(!Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="history">Lịch Sử Mượn</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link @(Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="ongoing">Đơn Hàng Đang Giao</a>
-            </li>
-        </ul>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4 fw-bold">Hoạt Động Của Tôi</h1>
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <a class="nav-link @(!Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="history">Lịch Sử Mượn</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(Model.IsOngoingOrdersTab ? "active" : "")" asp-page="/Exchange/UserActivity" asp-route-tab="ongoing">Đơn Hàng Đang Giao</a>
+                </li>
+            </ul>
 
-        @if (Model.IsOngoingOrdersTab)
-        {
-            <h2>Đơn Hàng Đang Giao</h2>
-            @if (Model.OngoingOrders.Any())
+            @if (Model.IsOngoingOrdersTab)
             {
-                <div class="list-group">
-                    @foreach (var order in Model.OngoingOrders)
-                    {
-                        <a href="/Exchange/OrderDetails/@order.Id" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">Đơn Hàng #@order.Id</h5>
-                                <small>@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                <h2 class="mb-3">Đơn Hàng Đang Giao</h2>
+                @if (Model.OngoingOrders.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var order in Model.OngoingOrders)
+                        {
+                            <div class="list-group-item list-group-item-action mb-3 shadow-sm">
+                                <a href="/Exchange/OrderDetails/@order.Id" class="text-decoration-none">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1 fw-bold">Đơn Hàng #@order.Id</h5>
+                                        <small class="text-muted">@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </div>
+                                    <p class="mb-1">Mặt Hàng: @(order.Item?.Title ?? "Không xác định")</p>
+                                    <p class="mb-1">Trạng Thái: @order.Status</p>
+                                    <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
+                                </a>
+                                @if (order.StatusHistory.Any())
+                                {
+                                    <button class="btn btn-link text-primary p-0 mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#history-@order.Id" aria-expanded="false" aria-controls="history-@order.Id">
+                                        Xem lịch sử trạng thái
+                                    </button>
+                                    <div class="collapse mt-2" id="history-@order.Id">
+                                        <div class="card card-body">
+                                            <h6 class="fw-bold">Lịch Sử Trạng Thái</h6>
+                                            <ul class="list-group list-group-flush">
+                                                @foreach (var history in order.StatusHistory.OrderByDescending(h => h.ChangedAt))
+                                                {
+                                                    <li class="list-group-item">
+                                                        <strong>@history.Status</strong> tại @history.ChangedAt.ToString("dd/MM/yyyy HH:mm")
+                                                        @if (!string.IsNullOrEmpty(history.Note))
+                                                        {
+                                                            <p class="mb-0 text-muted">Ghi chú: @history.Note</p>
+                                                        }
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
                             </div>
-                            <p class="mb-1">Mặt Hàng: @order.Item?.Title</p>
-                            <p class="mb-1">Trạng Thái: @order.Status</p>
-                            <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
-                        </a>
-                    }
-                </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Không có đơn hàng đang giao.</p>
+                }
             }
             else
             {
-                <p class="text-muted">Không có đơn hàng đang giao.</p>
-            }
-        }
-        else
-        {
-            <h2>Lịch Sử Mượn</h2>
-            @if (Model.BorrowingHistory.Any())
-            {
-                <div class="list-group">
-                    @foreach (var order in Model.BorrowingHistory)
-                    {
-                        <a href="/Exchange/OrderDetails/@order.Id" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">Đơn Hàng #@order.Id</h5>
-                                <small>@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                <h2 class="mb-3">Lịch Sử Mượn</h2>
+                @if (Model.BorrowingHistory.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var order in Model.BorrowingHistory)
+                        {
+                            <div class="list-group-item list-group-item-action mb-3 shadow-sm">
+                                <a href="/Exchange/OrderDetails/@order.Id" class="text-decoration-none">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1 fw-bold">Đơn Hàng #@order.Id</h5>
+                                        <small class="text-muted">@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </div>
+                                    <p class="mb-1">Mặt Hàng: @(order.Item?.Title ?? "Không xác định")</p>
+                                    <p class="mb-1">Trạng Thái: @order.Status</p>
+                                    <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
+                                </a>
+                                @if (order.StatusHistory.Any())
+                                {
+                                    <button class="btn btn-link text-primary p-0 mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#history-@order.Id" aria-expanded="false" aria-controls="history-@order.Id">
+                                        Xem lịch sử trạng thái
+                                    </button>
+                                    <div class="collapse mt-2" id="history-@order.Id">
+                                        <div class="card card-body">
+                                            <h6 class="fw-bold">Lịch Sử Trạng Thái</h6>
+                                            <ul class="list-group list-group-flush">
+                                                @foreach (var history in order.StatusHistory.OrderByDescending(h => h.ChangedAt))
+                                                {
+                                                    <li class="list-group-item">
+                                                        <strong>@history.Status</strong> tại @history.ChangedAt.ToString("dd/MM/yyyy HH:mm")
+                                                        @if (!string.IsNullOrEmpty(history.Note))
+                                                        {
+                                                            <p class="mb-0 text-muted">Ghi chú: @history.Note</p>
+                                                        }
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
                             </div>
-                            <p class="mb-1">Mặt Hàng: @order.Item?.Title</p>
-                            <p class="mb-1">Trạng Thái: @order.Status</p>
-                            <p class="mb-1">Địa Chỉ Giao: @order.ShippingAddress</p>
-                        </a>
-                    }
-                </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Không có lịch sử mượn.</p>
+                }
             }
-            else
-            {
-                <p class="text-muted">Không có lịch sử mượn.</p>
-            }
-        }
+        </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+}

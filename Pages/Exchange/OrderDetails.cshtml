@@ -55,6 +55,14 @@
         </div>
     </div>
 
+    @if (Model.Order.Status == "Accepted" && Model.Order.Item.OwnerId == UserManager.GetUserId(User))
+    {
+        <form method="post" asp-page-handler="Ship" class="d-inline">
+            <!-- Replace with actual delivery agent selection logic -->
+            <input type="hidden" name="deliveryAgentId" value="SAMPLE_DELIVERY_AGENT_ID" />
+            <button type="submit" class="btn btn-primary mt-3">Giao hàng</button>
+        </form>
+    }
     @if (Model.Order.Status == "Pending")
     {
         <button class="btn btn-danger mt-3" data-bs-toggle="modal" data-bs-target="#cancelModal">Hủy đơn</button>

@@ -27,11 +27,14 @@ namespace LoginSystem.Models
         [Range(0, int.MaxValue, ErrorMessage = "Số lượng phải lớn hơn hoặc bằng 0.")]
         public int QuantityAvailable { get; set; }
 
+        [Required(ErrorMessage = "Địa chỉ lấy hàng là bắt buộc.")]
+        [MaxLength(500, ErrorMessage = "Địa chỉ không được vượt quá 500 ký tự.")]
+        public string PickupAddress { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Người sở hữu là bắt buộc.")]
         public string OwnerId { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Tổ chức là bắt buộc.")]
-        public string OrganizationId { get; set; } = string.Empty;
+        public string? OrganizationId { get; set; } = "Không Tổ Chức"; // Optional, defaults to "Không Tổ Chức"
 
         [Required(ErrorMessage = "Vui lòng chọn danh mục.")]
         public string CategoryId { get; set; } = string.Empty;
@@ -40,13 +43,11 @@ namespace LoginSystem.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
-        // Navigation properties (không bắt buộc)
         public ApplicationUser? Owner { get; set; }
         public ItemCategory? Category { get; set; }
-
-        // Collections
         public List<ItemTag> Tags { get; set; } = new List<ItemTag>();
         public List<ItemMedia> MediaItems { get; set; } = new List<ItemMedia>();
+        public List<ItemReport> Reports { get; set; } = new List<ItemReport>();
 
         [NotMapped]
         public List<ItemMedia> Images => MediaItems?.Where(m => m.MediaType == MediaType.Image).ToList() ?? new List<ItemMedia>();
@@ -117,6 +118,27 @@ namespace LoginSystem.Models
         public int Score { get; set; }
 
         public DateTime RatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    public class ItemReport
+    {
+        [Key]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        [Required]
+        public string ItemId { get; set; } = string.Empty;
+
+        public ExchangeItem? Item { get; set; }
+
+        [Required]
+        public string UserId { get; set; } = string.Empty;
+
+        public ApplicationUser? User { get; set; }
+
+        [Required, MaxLength(1000)]
+        public string Reason { get; set; } = string.Empty;
+
+        public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
     }
 
     public class ItemTag

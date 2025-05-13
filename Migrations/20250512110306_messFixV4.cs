@@ -5,7 +5,7 @@
 namespace TechShare.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateSearchSchema : Migration
+    public partial class messFixV4 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

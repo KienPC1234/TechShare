@@ -17,13 +17,13 @@ using System.Threading.Tasks;
 namespace LoginSystem.Pages.Exchange
 {
     [Authorize]
-    public class CreateItemModel : PageModel
+    public class EditItemModel : PageModel
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMemoryCache _cache;
 
-        public CreateItemModel(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache)
+        public EditItemModel(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
@@ -42,72 +42,96 @@ namespace LoginSystem.Pages.Exchange
         [BindProperty]
         public string Tags { get; set; } = string.Empty;
 
+        [BindProperty]
+        public List<string> DeleteMedia { get; set; } = new List<string>();
+
         public List<SelectListItem> Categories { get; private set; } = new List<SelectListItem>();
 
         public string? ErrorMessage { get; private set; }
 
         public bool HasOrganization { get; private set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(string? id)
         {
+            if (string.IsNullOrEmpty(id))
+            {
+                return NotFound("ID mặt hàng không được cung cấp.");
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
-                ErrorMessage = "Người dùng không được xác thực.";
-                return Page();
+                return Forbid();
             }
 
-            Item.OwnerId = user.Id; // Set OwnerId for hidden input
-            Item.OrganizationId = string.IsNullOrWhiteSpace(user.OrganizationId) ? null : user.OrganizationId; // Normalize to null if empty
+            Item = await _context.ExchangeItems
+                .Include(i => i.MediaItems)
+                .Include(i => i.Tags)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (Item == null || Item.OwnerId != user.Id)
+            {
+                return NotFound("Mặt hàng không tồn tại hoặc bạn không có quyền chỉnh sửa.");
+            }
+
+            Tags = string.Join(", ", Item.Tags.Select(t => t.Tag));
             HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
             await LoadSelectListsAsync();
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(string? id)
         {
+            if (string.IsNullOrEmpty(id))
+            {
+                return NotFound("ID mặt hàng không được cung cấp.");
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
-                ErrorMessage = "Người dùng không được xác thực.";
-                HasOrganization = false;
-                await LoadSelectListsAsync();
-                return Page();
+                return Forbid();
             }
 
-            // Validate OwnerId to prevent tampering
-            if (Item.OwnerId != user.Id)
+            var itemToUpdate = await _context.ExchangeItems
+                .Include(i => i.MediaItems)
+                .Include(i => i.Tags)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (itemToUpdate == null || itemToUpdate.OwnerId != user.Id)
             {
-                ErrorMessage = "ID người sở hữu không hợp lệ.";
-                HasOrganization = false;
-                await LoadSelectListsAsync();
-                return Page();
+                return NotFound("Mặt hàng không tồn tại hoặc bạn không có quyền chỉnh sửa.");
             }
+
+            // Update basic properties
+            itemToUpdate.Title = Item.Title;
+            itemToUpdate.Description = Item.Description;
+            itemToUpdate.Terms = Item.Terms;
+            itemToUpdate.QuantityAvailable = Item.QuantityAvailable;
+            itemToUpdate.PickupAddress = Item.PickupAddress;
+            itemToUpdate.CategoryId = Item.CategoryId;
+            itemToUpdate.IsPrivate = Item.IsPrivate;
+            itemToUpdate.UpdatedAt = DateTime.UtcNow;
 
             // Normalize OrganizationId and handle invalid cases
-            if (!string.IsNullOrWhiteSpace(Item.OrganizationId))
+            if (!string.IsNullOrWhiteSpace(itemToUpdate.OrganizationId))
             {
-                var orgExists = await _context.Organizations.AnyAsync(o => o.Id == Item.OrganizationId);
+                var orgExists = await _context.Organizations.AnyAsync(o => o.Id == itemToUpdate.OrganizationId);
                 if (!orgExists)
                 {
-                    Item.OrganizationId = null; // Set to null if organization doesn't exist
+                    itemToUpdate.OrganizationId = null;
                 }
             }
             else
             {
-                Item.OrganizationId = null; // Normalize empty or whitespace to null
+                itemToUpdate.OrganizationId = null;
             }
 
             // Ensure IsPrivate is false if no organization
-            if (Item.IsPrivate && Item.OrganizationId == null)
+            if (itemToUpdate.IsPrivate && itemToUpdate.OrganizationId == null)
             {
-                Item.IsPrivate = false; // Force false if no organization
+                itemToUpdate.IsPrivate = false;
             }
-
-            Item.Id = Guid.NewGuid().ToString();
-            Item.CreatedAt = DateTime.UtcNow;
-            Item.MediaItems = new List<ItemMedia>();
-            Item.Tags = new List<ItemTag>();
 
             // Validate model state
             if (!ModelState.IsValid)
@@ -120,7 +144,7 @@ namespace LoginSystem.Pages.Exchange
             }
 
             // Validate required fields
-            if (string.IsNullOrWhiteSpace(Item.Title) || Item.Title.Length > 200)
+            if (string.IsNullOrWhiteSpace(itemToUpdate.Title) || itemToUpdate.Title.Length > 200)
             {
                 ErrorMessage = "Tiêu đề không hợp lệ hoặc vượt quá 200 ký tự.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -128,7 +152,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (string.IsNullOrWhiteSpace(Item.Description) || Item.Description.Length > 5000)
+            if (string.IsNullOrWhiteSpace(itemToUpdate.Description) || itemToUpdate.Description.Length > 5000)
             {
                 ErrorMessage = "Mô tả không hợp lệ hoặc vượt quá 5000 ký tự.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -136,7 +160,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (string.IsNullOrWhiteSpace(Item.Terms) || Item.Terms.Length > 1000)
+            if (string.IsNullOrWhiteSpace(itemToUpdate.Terms) || itemToUpdate.Terms.Length > 1000)
             {
                 ErrorMessage = "Điều khoản không hợp lệ hoặc vượt quá 1000 ký tự.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -144,7 +168,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (string.IsNullOrWhiteSpace(Item.PickupAddress) || Item.PickupAddress.Length > 500)
+            if (string.IsNullOrWhiteSpace(itemToUpdate.PickupAddress) || itemToUpdate.PickupAddress.Length > 500)
             {
                 ErrorMessage = "Địa chỉ lấy hàng không hợp lệ hoặc vượt quá 500 ký tự.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -152,7 +176,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (Item.QuantityAvailable < 0)
+            if (itemToUpdate.QuantityAvailable < 0)
             {
                 ErrorMessage = "Số lượng phải lớn hơn hoặc bằng 0.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -160,7 +184,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (string.IsNullOrEmpty(Item.CategoryId))
+            if (string.IsNullOrEmpty(itemToUpdate.CategoryId))
             {
                 ErrorMessage = "Danh mục là bắt buộc.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
@@ -168,7 +192,7 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            var categoryExists = await _context.ItemCategories.AnyAsync(c => c.Id == Item.CategoryId);
+            var categoryExists = await _context.ItemCategories.AnyAsync(c => c.Id == itemToUpdate.CategoryId);
             if (!categoryExists)
             {
                 ErrorMessage = "Danh mục không tồn tại.";
@@ -177,8 +201,19 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            // Process media files
-            var mediaResult = await ProcessMediaFilesAsync();
+            // Process media deletions
+            if (DeleteMedia.Any())
+            {
+                var mediaToDelete = itemToUpdate.MediaItems.Where(m => DeleteMedia.Contains(m.Id)).ToList();
+                foreach (var media in mediaToDelete)
+                {
+                    itemToUpdate.MediaItems.Remove(media);
+                    _context.ItemMedia.Remove(media);
+                }
+            }
+
+            // Process new media uploads
+            var mediaResult = await ProcessMediaFilesAsync(itemToUpdate);
             if (!mediaResult.Success)
             {
                 ErrorMessage = mediaResult.ErrorMessage;
@@ -187,15 +222,16 @@ namespace LoginSystem.Pages.Exchange
                 return Page();
             }
 
-            if (!mediaResult.HasMedia)
+            if (!itemToUpdate.MediaItems.Any())
             {
-                ErrorMessage = "Vui lòng tải lên ít nhất một hình ảnh hoặc video.";
+                ErrorMessage = "Vui lòng giữ hoặc tải lên ít nhất một hình ảnh hoặc video.";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
 
             // Process tags
+            itemToUpdate.Tags.Clear();
             if (!string.IsNullOrWhiteSpace(Tags))
             {
                 var tagList = Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -212,30 +248,27 @@ namespace LoginSystem.Pages.Exchange
                     return Page();
                 }
 
-                Item.Tags = tagList.Select(t => new ItemTag
+                itemToUpdate.Tags = tagList.Select(t => new ItemTag
                 {
                     Id = Guid.NewGuid().ToString(),
                     Tag = t,
-                    ItemId = Item.Id
+                    ItemId = itemToUpdate.Id
                 }).ToList();
             }
 
             try
             {
-                foreach (var media in Item.MediaItems)
+                foreach (var media in itemToUpdate.MediaItems)
                 {
-                    media.ItemId = Item.Id;
+                    media.ItemId = itemToUpdate.Id;
                 }
 
-                await _context.ExchangeItems.AddAsync(Item);
                 await _context.SaveChangesAsync();
-                _cache.Remove("ItemCategories");
-
-                return RedirectToPage("/Exchange/Item", new { id = Item.Id });
+                return RedirectToPage("/Exchange/Item", new { id = itemToUpdate.Id });
             }
             catch (DbUpdateException ex)
             {
-                ErrorMessage = $"Lỗi khi lưu mặt hàng: {ex.InnerException?.Message ?? ex.Message}";
+                ErrorMessage = $"Lỗi khi lưu thay đổi: {ex.InnerException?.Message ?? ex.Message}";
                 HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
@@ -249,31 +282,32 @@ namespace LoginSystem.Pages.Exchange
             }
         }
 
-        private async Task<(bool Success, bool HasMedia, string? ErrorMessage)> ProcessMediaFilesAsync()
+        private async Task<(bool Success, string? ErrorMessage)> ProcessMediaFilesAsync(ExchangeItem item)
         {
             try
             {
                 if (Images.Any(f => f != null))
                 {
-                    if (Images.Count > 5)
-                        return (false, false, "Chỉ được tải lên tối đa 5 hình ảnh.");
+                    var currentImageCount = item.MediaItems.Count(m => m.MediaType == MediaType.Image);
+                    if (currentImageCount + Images.Count > 5)
+                        return (false, "Tổng số hình ảnh không được vượt quá 5.");
 
                     foreach (var image in Images.Where(f => f != null))
                     {
                         if (image.Length > 5 * 1024 * 1024)
-                            return (false, false, "Ảnh phải nhỏ hơn 5MB.");
+                            return (false, "Ảnh phải nhỏ hơn 5MB.");
 
                         var ext = Path.GetExtension(image.FileName).ToLower();
                         if (!(ext == ".jpg" || ext == ".jpeg" || ext == ".png"))
-                            return (false, false, "Ảnh phải là định dạng JPG hoặc PNG.");
+                            return (false, "Ảnh phải là định dạng JPG hoặc PNG.");
 
                         var url = await SaveFileAsync(image);
-                        Item.MediaItems.Add(new ItemMedia
+                        item.MediaItems.Add(new ItemMedia
                         {
                             Id = Guid.NewGuid().ToString(),
                             Url = url,
                             MediaType = MediaType.Image,
-                            ItemId = Item.Id
+                            ItemId = item.Id
                         });
                     }
                 }
@@ -281,27 +315,33 @@ namespace LoginSystem.Pages.Exchange
                 if (Video != null)
                 {
                     if (Video.Length > 50 * 1024 * 1024)
-                        return (false, false, "Video phải nhỏ hơn 50MB.");
+                        return (false, "Video phải nhỏ hơn 50MB.");
 
                     var ext = Path.GetExtension(Video.FileName).ToLower();
                     if (ext != ".mp4")
-                        return (false, false, "Video phải là định dạng MP4.");
+                        return (false, "Video phải là định dạng MP4.");
+
+                    var existingVideo = item.MediaItems.FirstOrDefault(m => m.MediaType == MediaType.Video);
+                    if (existingVideo != null && !DeleteMedia.Contains(existingVideo.Id))
+                    {
+                        return (false, "Chỉ được phép có tối đa 1 video. Vui lòng xóa video hiện tại trước khi tải lên video mới.");
+                    }
 
                     var url = await SaveFileAsync(Video);
-                    Item.MediaItems.Add(new ItemMedia
+                    item.MediaItems.Add(new ItemMedia
                     {
                         Id = Guid.NewGuid().ToString(),
                         Url = url,
                         MediaType = MediaType.Video,
-                        ItemId = Item.Id
+                        ItemId = item.Id
                     });
                 }
 
-                return (true, Item.MediaItems.Any(), null);
+                return (true, null);
             }
             catch (Exception ex)
             {
-                return (false, false, $"Lỗi khi xử lý tệp: {ex.Message}");
+                return (false, $"Lỗi khi xử lý tệp: {ex.Message}");
             }
         }
 

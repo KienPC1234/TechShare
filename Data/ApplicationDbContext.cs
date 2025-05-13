@@ -20,9 +20,11 @@ namespace LoginSystem.Data
         public DbSet<ExchangeItem> ExchangeItems { get; set; } = null!;
         public DbSet<ItemComment> ItemComments { get; set; } = null!;
         public DbSet<ItemRating> ItemRatings { get; set; } = null!;
+        public DbSet<ItemReport> ItemReports { get; set; } = null!;
         public DbSet<BorrowOrder> BorrowOrders { get; set; } = null!;
         public DbSet<ItemTag> ItemTags { get; set; } = null!;
         public DbSet<ItemCategory> ItemCategories { get; set; } = null!;
+        public DbSet<ItemMedia> ItemMedia { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<Message> Messages { get; set; } = null!;
         public DbSet<OrderStatusHistory> StatusHistory { get; set; } = null!;
@@ -73,6 +75,7 @@ namespace LoginSystem.Data
                 .HasOne<Organization>()
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
+                .IsRequired(false) // Make OrganizationId nullable
                 .OnDelete(DeleteBehavior.SetNull);
 
             // OrganizationMember - User
@@ -110,6 +113,7 @@ namespace LoginSystem.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // ===== EXCHANGE ITEM RELATIONS =====
 
             // ItemMedia
             builder.Entity<ItemMedia>()
@@ -174,6 +178,24 @@ namespace LoginSystem.Data
             builder.Entity<ItemRating>()
                 .HasIndex(r => r.ItemId);
 
+            // ItemReport
+            builder.Entity<ItemReport>()
+                .HasOne(r => r.Item)
+                .WithMany(i => i.Reports)
+                .HasForeignKey(r => r.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ItemReport>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ItemReport>()
+                .HasIndex(r => r.ItemId);
+            builder.Entity<ItemReport>()
+                .HasIndex(r => r.ReportedAt);
+
             // BorrowOrder
             builder.Entity<BorrowOrder>()
                 .HasOne(o => o.Item)
@@ -214,7 +236,7 @@ namespace LoginSystem.Data
 
             // Notification
             builder.Entity<Notification>()
-            .HasIndex(n => n.UserId);
+                .HasIndex(n => n.UserId);
             builder.Entity<Notification>()
                 .HasIndex(n => n.CreatedAt);
             builder.Entity<Notification>()
@@ -240,6 +262,7 @@ namespace LoginSystem.Data
             builder.Entity<Message>()
                 .HasIndex(m => m.CreatedAt);
 
+            // OrderStatusHistory
             builder.Entity<OrderStatusHistory>()
                 .HasOne(o => o.Order)
                 .WithMany(o => o.StatusHistory)

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace TechShare.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250510162833_FixNofi")]
-    partial class FixNofi
+    [Migration("20250512105836_messFixV3")]
+    partial class messFixV3
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -173,11 +173,15 @@ namespace TechShare.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PickupAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("QuantityAvailable")
@@ -312,6 +316,38 @@ namespace TechShare.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ItemRatings");
+                });
+
+            modelBuilder.Entity("LoginSystem.Models.ItemReport", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ItemId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReportedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("ReportedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ItemReports");
                 });
 
             modelBuilder.Entity("LoginSystem.Models.ItemTag", b =>
@@ -795,8 +831,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LoginSystem.Models.ApplicationUser", "Owner")
                         .WithMany()
@@ -843,6 +878,25 @@ namespace TechShare.Migrations
                 {
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LoginSystem.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LoginSystem.Models.ItemReport", b =>
+                {
+                    b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
+                        .WithMany("Reports")
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1033,6 +1087,8 @@ namespace TechShare.Migrations
             modelBuilder.Entity("LoginSystem.Models.ExchangeItem", b =>
                 {
                     b.Navigation("MediaItems");
+
+                    b.Navigation("Reports");
 
                     b.Navigation("Tags");
                 });
