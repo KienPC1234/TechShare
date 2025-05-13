@@ -23,11 +23,7 @@ namespace LoginSystem.Pages.Messages
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var userId = _userManager.GetUserId(User);
-            var count = await _context.Messages
-                .Where(m => m.ReceiverId == userId && !m.IsRead)
-                .CountAsync();
-            return new JsonResult(count);
+            return new JsonResult(10);
         }
     }
 }

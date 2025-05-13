@@ -5,11 +5,13 @@ using LoginSystem.Models;
 using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.SignalR; // Required for SignalR
+using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -22,6 +24,9 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddMemoryCache();
+builder.Services.AddInMemoryRateLimiting(); // Cài đặt bộ nhớ rate limiting
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 // Add SignalR services before builder.Build()
 builder.Services.AddSignalR();
@@ -59,6 +64,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
@@ -66,9 +72,11 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
+app.MapControllers();
 
 // Map SignalR hub
-app.MapHub<LoginSystem.Hubs.ChatHub>("/chatHub");
+app.MapHub<LoginSystem.Hubs.ChatHub>("/NotificationHub");
+app.MapHub<LoginSystem.Hubs.MessHub>("/mesHub");
 
 await SeedDataAsync(app.Services);
 

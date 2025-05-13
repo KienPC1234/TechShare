@@ -244,23 +244,28 @@ namespace LoginSystem.Data
 
             // Message
             builder.Entity<Message>()
+                .HasIndex(m => m.SenderId)
+                .HasDatabaseName("IX_Messages_SenderId");
+
+            builder.Entity<Message>()
+                .HasIndex(m => m.ReceiverId)
+                .HasDatabaseName("IX_Messages_ReceiverId");
+
+            builder.Entity<Message>()
+                .HasIndex(m => m.CreatedAt)
+                .HasDatabaseName("IX_Messages_CreatedAt");
+
+            builder.Entity<Message>()
                 .HasOne(m => m.Sender)
                 .WithMany()
                 .HasForeignKey(m => m.SenderId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Message>()
                 .HasOne(m => m.Receiver)
                 .WithMany()
                 .HasForeignKey(m => m.ReceiverId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<Message>()
-                .HasIndex(m => m.SenderId);
-            builder.Entity<Message>()
-                .HasIndex(m => m.ReceiverId);
-            builder.Entity<Message>()
-                .HasIndex(m => m.CreatedAt);
+                .OnDelete(DeleteBehavior.Restrict);
 
             // OrderStatusHistory
             builder.Entity<OrderStatusHistory>()
