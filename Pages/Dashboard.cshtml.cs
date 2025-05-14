@@ -334,6 +334,20 @@ namespace LoginSystem.Pages
 
                     if (action == "delete")
                     {
+                        // Xóa bình luận của tin tức trước
+                        _dbContext.OrganizationNewsComments.RemoveRange(
+                            _dbContext.OrganizationNewsComments.Where(nc =>
+                                _dbContext.OrganizationNews
+                                    .Where(n => n.OrganizationId == id)
+                                    .Select(n => n.Id)
+                                    .Contains(nc.NewsId)
+                            )
+                        );
+                        // Xóa tin tức của tổ chức
+                        _dbContext.OrganizationNews.RemoveRange(
+                            _dbContext.OrganizationNews.Where(n => n.OrganizationId == id)
+                        );
+                        // Code hiện có
                         _dbContext.OrganizationMembers.RemoveRange(_dbContext.OrganizationMembers.Where(m => m.OrganizationId == id));
                         _dbContext.OrganizationJoinRequests.RemoveRange(_dbContext.OrganizationJoinRequests.Where(r => r.OrganizationId == id));
                         _dbContext.OrganizationComments.RemoveRange(_dbContext.OrganizationComments.Where(c => c.OrganizationId == id));

@@ -1,0 +1,187 @@
+﻿@page
+@model LoginSystem.Pages.Organization.EditNewsModel
+@{
+    ViewData["Title"] = "Chỉnh Sửa Bài Viết";
+}
+
+<style>
+    .form-container {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #343a40;
+    }
+
+    .form-control, .form-check-input {
+        border-radius: 0.25rem;
+    }
+
+    .img-thumbnail {
+        max-width: 200px;
+        border-radius: 0.25rem;
+        margin-top: 0.5rem;
+    }
+
+    .btn {
+        transition: background-color 0.3s, transform 0.1s;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .alert {
+        border-radius: 0.5rem;
+    }
+</style>
+
+<div class="container my-5">
+    <div class="form-container">
+        <h1 class="mb-4">Chỉnh Sửa Bài Viết</h1>
+
+        <!-- Alerts -->
+        <div id="alertContainer"></div>
+
+        <form id="editNewsForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@Model.NewsInput.Id" />
+            <input type="hidden" name="OrganizationId" value="@Model.NewsInput.OrganizationId" />
+
+            <div class="mb-3">
+                <label for="title" class="form-label">Tiêu Đề</label>
+                <input id="title" name="Title" class="form-control" value="@Model.NewsInput.Title" required />
+                <span class="text-danger" id="titleError"></span>
+            </div>
+
+            <div class="mb-3">
+                <label for="content" class="form-label">Nội Dung</label>
+                <textarea id="content" name="Content" class="form-control summernote">@Model.NewsInput.Content</textarea>
+                <span class="text-danger" id="contentError"></span>
+            </div>
+
+            <div class="mb-3">
+                <label for="thumbnailUpload" class="form-label">Ảnh Đại Diện (Tùy chọn)</label>
+                <input type="file" id="thumbnailUpload" class="form-control" accept="image/*" />
+                <input type="hidden" id="thumbnailUrl" name="ThumbnailUrl" value="@Model.NewsInput.ThumbnailUrl" />
+                <small class="form-text text-muted">Chọn ảnh mới để thay thế (nếu cần).</small>
+                @if (!string.IsNullOrEmpty(Model.NewsInput.ThumbnailUrl))
+                {
+                    <img src="@Model.NewsInput.ThumbnailUrl" class="img-thumbnail" alt="Thumbnail" />
+                }
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" id="isPublished" name="IsPublished" class="form-check-input" @(Model.NewsInput.IsPublished ? "checked" : "") />
+                <label for="isPublished" class="form-check-label">Công khai</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Lưu</button>
+                <a asp-page="/Organization/NewsDetails" asp-route-slug="@Model.Organization?.Slug" asp-route-newsId="@Model.NewsInput.Id" class="btn btn-secondary">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Initialize Summernote
+            $('.summernote').summernote({
+                height: 300,
+                callbacks: {
+                    onImageUpload: function (files) {
+                        var formData = new FormData();
+                        formData.append('file', files[0]);
+
+                        $.ajax({
+                            url: '/api/chat/upload',
+                            method: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            success: function (response) {
+                                $('.summernote').summernote('insertImage', response.fileUrl);
+                            },
+                            error: function () {
+                                showAlert('danger', 'Lỗi khi upload ảnh.');
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Handle thumbnail upload
+            $('#thumbnailUpload').change(function () {
+                var formData = new FormData();
+                formData.append('file', this.files[0]);
+
+                $.ajax({
+                    url: '/api/chat/upload',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $('#thumbnailUrl').val(response.fileUrl);
+                    },
+                    error: function () {
+                        showAlert('danger', 'Lỗi khi upload ảnh đại diện.');
+                    }
+                });
+            });
+
+            // Handle form submission
+            $('#editNewsForm').submit(function (e) {
+                e.preventDefault();
+                var formData = {
+                    Id: $('input[name="Id"]').val(),
+                    OrganizationId: $('input[name="OrganizationId"]').val(),
+                    Title: $('#title').val(),
+                    Content: $('#content').summernote('code'),
+                    ThumbnailUrl: $('#thumbnailUrl').val(),
+                    IsPublished: $('#isPublished').is(':checked')
+                };
+
+                $.ajax({
+                    url: '/api/news/' + formData.Id,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        showAlert('success', response.message || 'Cập nhật bài viết thành công!');
+                        setTimeout(function () {
+                            window.location.href = '/Organization/NewsDetails?slug=@Model.Organization?.Slug&newsId=@Model.NewsInput.Id';
+                        }, 1500);
+                    },
+                    error: function (xhr) {
+                        var message = xhr.responseJSON?.message || 'Lỗi khi cập nhật bài viết.';
+                        var errors = xhr.responseJSON?.errors || [];
+                        showAlert('danger', message + (errors.length ? ': ' + errors.join('; ') : ''));
+                    }
+                });
+            });
+
+            // Utility function to show alerts
+            function showAlert(type, message) {
+                $('#alertContainer').html(`
+                    <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `);
+            }
+        });
+    </script>
+}

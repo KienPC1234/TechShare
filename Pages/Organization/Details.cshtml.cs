@@ -39,9 +39,13 @@ namespace LoginSystem.Pages.Organization
         public string CurrentUserId { get; set; } = string.Empty;
         public IList<CommentViewModel> Comments { get; set; } = new List<CommentViewModel>();
         public IList<MemberViewModel> Members { get; set; } = new List<MemberViewModel>();
+        public IList<NewsViewModel> News { get; set; } = new List<NewsViewModel>();
         public int CurrentPage { get; set; } = 1;
+        public int CurrentNewsPage { get; set; } = 1;
         public int TotalPages { get; set; } = 1;
-        private const int PageSize = 20;
+        public int TotalNewsPages { get; set; } = 1;
+        private const int MemberPageSize = 20;
+        private const int NewsPageSize = 10;
 
         public class CommentViewModel
         {
@@ -60,6 +64,15 @@ namespace LoginSystem.Pages.Organization
             public string AvatarUrl { get; set; } = string.Empty;
             public string Role { get; set; } = string.Empty;
             public DateTime JoinedAt { get; set; }
+        }
+
+        public class NewsViewModel
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty;
+            public string? ThumbnailUrl { get; set; }
+            public DateTime CreatedAt { get; set; }
         }
 
         [BindProperty]
@@ -101,7 +114,7 @@ namespace LoginSystem.Pages.Organization
             public bool TermsAccepted { get; set; }
         }
 
-        public async Task<IActionResult> OnGetAsync(string slug, int page = 1)
+        public async Task<IActionResult> OnGetAsync(string slug, int page = 1, int newsPage = 1)
         {
             if (string.IsNullOrEmpty(slug))
             {
@@ -120,6 +133,7 @@ namespace LoginSystem.Pages.Organization
             }
 
             CurrentPage = page < 1 ? 1 : page;
+            CurrentNewsPage = newsPage < 1 ? 1 : newsPage;
             CurrentUserId = _userManager.GetUserId(User) ?? string.Empty;
             await LoadOrganizationData(CurrentUserId);
 
@@ -195,12 +209,11 @@ namespace LoginSystem.Pages.Organization
                         };
                         _dbContext.Notifications.Add(notification);
 
-                        // Send real-time notification
                         await _hubContext.Clients.User(admin.UserId).SendAsync("ReceiveNotification",
                             notification.Id,
                             notification.Content,
                             notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
-                            $"/Organization/Details/{slug}",
+                            $"/Organization/Manage/{slug}",
                             notification.Type);
                     }
                 }
@@ -229,7 +242,6 @@ namespace LoginSystem.Pages.Organization
                 };
                 _dbContext.Notifications.Add(notification);
 
-                // Send real-time notification
                 await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification",
                     notification.Id,
                     notification.Content,
@@ -293,7 +305,6 @@ namespace LoginSystem.Pages.Organization
             };
             _dbContext.Notifications.Add(notification);
 
-            // Send real-time notification
             await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,
@@ -348,7 +359,6 @@ namespace LoginSystem.Pages.Organization
             };
             _dbContext.OrganizationComments.Add(comment);
 
-            // Notify admins about the new comment
             var admins = await _dbContext.OrganizationMembers
                 .Where(m => m.OrganizationId == Organization.Id && m.Role == "Admin")
                 .ToListAsync();
@@ -367,7 +377,6 @@ namespace LoginSystem.Pages.Organization
                     };
                     _dbContext.Notifications.Add(notification);
 
-                    // Send real-time notification
                     await _hubContext.Clients.User(admin.UserId).SendAsync("ReceiveNotification",
                         notification.Id,
                         notification.Content,
@@ -481,7 +490,6 @@ namespace LoginSystem.Pages.Organization
                 };
                 _dbContext.Notifications.Add(notification);
 
-                // Send real-time notification
                 await _hubContext.Clients.User(superAdmin.Id).SendAsync("ReceiveNotification",
                     notification.Id,
                     notification.Content,
@@ -625,11 +633,32 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking();
 
             Members = await membersQuery
-                .Skip((CurrentPage - 1) * PageSize)
-                .Take(PageSize)
+                .Skip((CurrentPage - 1) * MemberPageSize)
+                .Take(MemberPageSize)
                 .ToListAsync();
 
-            TotalPages = (int)Math.Ceiling((double)MemberCount / PageSize);
+            var newsQuery = _dbContext.OrganizationNews
+                .Where(n => n.OrganizationId == Organization.Id && (IsAdmin || n.IsPublished))
+                .Select(n => new NewsViewModel
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    ThumbnailUrl = n.ThumbnailUrl,
+                    CreatedAt = n.CreatedAt
+                })
+                .OrderByDescending(n => n.CreatedAt)
+                .AsNoTracking();
+
+            var newsCount = await newsQuery.CountAsync();
+            TotalNewsPages = (int)Math.Ceiling((double)newsCount / NewsPageSize);
+
+            News = await newsQuery
+                .Skip((CurrentNewsPage - 1) * NewsPageSize)
+                .Take(NewsPageSize)
+                .ToListAsync();
+
+            TotalPages = (int)Math.Ceiling((double)MemberCount / MemberPageSize);
         }
     }
 }

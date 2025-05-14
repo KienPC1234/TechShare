@@ -35,6 +35,7 @@ namespace LoginSystem.Pages.Organization
         public LoginSystem.Models.Organization? Organization { get; set; }
         public IList<MemberViewModel> Members { get; set; } = new List<MemberViewModel>();
         public IList<JoinRequestViewModel> JoinRequests { get; set; } = new List<JoinRequestViewModel>();
+        public IList<NewsViewModel> News { get; set; } = new List<NewsViewModel>();
         public int TotalMembers { get; set; }
         public int TotalComments { get; set; }
         public double AverageRating { get; set; }
@@ -55,6 +56,14 @@ namespace LoginSystem.Pages.Organization
             public string UserName { get; set; } = string.Empty;
             public string UserAvatar { get; set; } = string.Empty;
             public DateTime RequestedAt { get; set; }
+        }
+
+        public class NewsViewModel
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty;
+            public DateTime CreatedAt { get; set; }
         }
 
         public async Task<IActionResult> OnGetAsync(string slug)
@@ -122,10 +131,26 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking()
                 .ToListAsync();
 
-            TotalMembers = Members.Count;
-            TotalComments = await _dbContext.OrganizationComments
+            News = await _dbContext.OrganizationNews
+                .Where(n => n.OrganizationId == Organization.Id)
+                .Select(n => new NewsViewModel
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    CreatedAt = n.CreatedAt
+                })
+                .OrderByDescending(n => n.CreatedAt)
                 .AsNoTracking()
-                .CountAsync(c => c.OrganizationId == Organization.Id);
+                .ToListAsync();
+
+            TotalMembers = Members.Count;
+            TotalComments = await _dbContext.OrganizationNewsComments
+                .AsNoTracking()
+                .CountAsync(c => c.NewsId == _dbContext.OrganizationNews
+                    .Where(n => n.OrganizationId == Organization.Id)
+                    .Select(n => n.Id)
+                    .FirstOrDefault());
             var ratings = await _dbContext.OrganizationRatings
                 .Where(r => r.OrganizationId == Organization.Id)
                 .AsNoTracking()
@@ -194,7 +219,6 @@ namespace LoginSystem.Pages.Organization
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send real-time notification via SignalR
             await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,
@@ -264,7 +288,6 @@ namespace LoginSystem.Pages.Organization
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send real-time notification via SignalR
             await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,
@@ -356,7 +379,6 @@ namespace LoginSystem.Pages.Organization
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send real-time notification via SignalR
             await _hubContext.Clients.User(memberId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,
@@ -462,7 +484,6 @@ namespace LoginSystem.Pages.Organization
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send real-time notification via SignalR
             await _hubContext.Clients.User(request.UserId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,
@@ -551,7 +572,6 @@ namespace LoginSystem.Pages.Organization
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send real-time notification via SignalR
             await _hubContext.Clients.User(request.UserId).SendAsync("ReceiveNotification",
                 notification.Id,
                 notification.Content,

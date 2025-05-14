@@ -1,0 +1,15 @@
+﻿@model LoginSystem.Pages.Organization.NewsDetailsModel
+
+<form method="post" asp-page-handler="Comment" asp-route-slug="@Model.Organization?.Slug" asp-route-newsId="@Model.News?.Id" class="mb-4">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label for="CommentInput_Content" class="form-label">Bình luận</label>
+        <textarea asp-for="CommentInput.Content" class="form-control" rows="4" required></textarea>
+        <span asp-validation-for="CommentInput.Content" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Gửi Bình Luận</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

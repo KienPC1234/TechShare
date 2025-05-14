@@ -1,0 +1,88 @@
+﻿@page
+@model LoginSystem.Pages.Organization.NewsModel
+@{
+    ViewData["Title"] = "Tin Tức Tổ Chức";
+}
+
+<style>
+    .news-card {
+        border-radius: 0.5rem;
+        transition: transform 0.2s;
+    }
+
+        .news-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .news-thumbnail {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+
+    .news-content {
+        line-height: 1.6;
+        max-width: 100%;
+        overflow-x: auto;
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+    }
+
+    .comment-avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+</style>
+
+<div class="container my-5">
+    <h1 class="mb-4">Tin Tức @Model.Organization?.Name</h1>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.IsAdmin)
+    {
+        <a asp-page="/Organization/CreateNews" asp-route-slug="@Model.Organization?.Slug" class="btn btn-primary mb-4">
+            <i class="fas fa-plus"></i> Tạo Bài Viết
+        </a>
+    }
+
+    <div class="row">
+        @foreach (var news in Model.NewsList)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card news-card shadow-sm">
+                    @if (!string.IsNullOrEmpty(news.ThumbnailUrl))
+                    {
+                        <img src="@news.ThumbnailUrl" class="news-thumbnail" alt="Thumbnail" />
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title">@news.Title</h5>
+                        <p class="card-text text-muted">Đăng bởi @news.AuthorName vào @news.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                        <a asp-page="/Organization/NewsDetails" asp-route-slug="@Model.Organization?.Slug" asp-route-newsId="@news.Id" class="btn btn-primary">Xem Chi Tiết</a>
+                    </div>
+                </div>
+            </div>
+        }
+        @if (!Model.NewsList.Any())
+        {
+            <p class="text-muted">Chưa có bài viết nào.</p>
+        }
+    </div>
+</div>

@@ -28,6 +28,8 @@ namespace LoginSystem.Data
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<Message> Messages { get; set; } = null!;
         public DbSet<OrderStatusHistory> StatusHistory { get; set; } = null!;
+        public DbSet<OrganizationNews> OrganizationNews { get; set; } = null!;
+        public DbSet<OrganizationNewsComment> OrganizationNewsComments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -111,6 +113,34 @@ namespace LoginSystem.Data
                 .HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Organization - News (1:N)
+            builder.Entity<OrganizationNews>()
+                .HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(n => n.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // OrganizationNews - Comment (1:N)
+            builder.Entity<OrganizationNewsComment>()
+                .HasOne<OrganizationNews>()
+                .WithMany()
+                .HasForeignKey(c => c.NewsId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // OrganizationNews - Author
+            builder.Entity<OrganizationNews>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(n => n.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // OrganizationNewsComment - User
+            builder.Entity<OrganizationNewsComment>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // ===== EXCHANGE ITEM RELATIONS =====
