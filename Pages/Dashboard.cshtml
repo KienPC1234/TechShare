@@ -1,12 +1,15 @@
 ﻿@page
 @model LoginSystem.Pages.DashboardModel
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<LoginSystem.Models.ApplicationUser> UserManager
+@inject LoginSystem.Data.ApplicationDbContext DbContext
 @{
     ViewData["Title"] = "Quản lý hệ thống";
 }
 
 <div class="container-fluid py-4">
-    <h1 class="mb-4">Quản lý hệ thống</h1>
+    <h1 class="mb-4 text-gradient">Quản lý hệ thống</h1>
 
     <!-- Notifications -->
     @if (TempData["ErrorMessage"] != null)
@@ -27,7 +30,7 @@
     <!-- Dashboard Stats -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm bg-gradient-primary text-white">
                 <div class="card-body text-center">
                     <h5 class="card-title">Tổng người dùng</h5>
                     <p class="card-text display-4">@Model.TotalUsers</p>
@@ -35,7 +38,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm bg-gradient-success text-white">
                 <div class="card-body text-center">
                     <h5 class="card-title">Tổng tổ chức</h5>
                     <p class="card-text display-4">@Model.TotalOrganizations</p>
@@ -43,244 +46,536 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm bg-gradient-warning text-white">
                 <div class="card-body text-center">
                     <h5 class="card-title">Yêu cầu Admin</h5>
-                    <p class="card-text display-4">@Model.AdminRequests.Count</p>
+                    <p class="card-text display-4">@Model.TotalAdminRequests</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm bg-gradient-info text-white">
                 <div class="card-body text-center">
-                    <h5 class="card-title">Báo cáo</h5>
-                    <p class="card-text display-4">@Model.Reports.Count</p>
+                    <h5 class="card-title">Báo cáo vật phẩm</h5>
+                    <p class="card-text display-4">@Model.TotalItemReports</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- User Management -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h2 class="card-title mb-0">Quản lý người dùng</h2>
-        </div>
-        <div class="card-body">
-            <form method="get" class="mb-3 d-flex">
-                <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm người dùng..." />
-                <button type="submit" class="btn btn-primary">Tìm</button>
-            </form>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="users-tab" data-bs-toggle="tab" href="#users" role="tab" aria-controls="users" aria-selected="true">Người dùng</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="organizations-tab" data-bs-toggle="tab" href="#organizations" role="tab" aria-controls="organizations" aria-selected="false">Tổ chức</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="admin-requests-tab" data-bs-toggle="tab" href="#admin-requests" role="tab" aria-controls="admin-requests" aria-selected="false">Yêu cầu Admin</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="org-reports-tab" data-bs-toggle="tab" href="#org-reports" role="tab" aria-controls="org-reports" aria-selected="false">Báo cáo tổ chức</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="item-reports-tab" data-bs-toggle="tab" href="#item-reports" role="tab" aria-controls="item-reports" aria-selected="false">Báo cáo vật phẩm</a>
+        </li>
+    </ul>
 
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tên đăng nhập</th>
-                            <th>Email</th>
-                            <th>Tên hiển thị</th>
-                            <th>Vai trò</th>
-                            <th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var u in Model.Users)
-                        {
-                            <tr>
-                                <td>@u.UserName</td>
-                                <td>@u.Email</td>
-                                <td>@u.DisplayName</td>
-                                <td>@string.Join(", ", await Model.UserManager.GetRolesAsync(u))</td>
-                                <td>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                            Hành động
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li>
-                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promoteAdmin" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
-                                                    <button class="dropdown-item">Thăng Admin</button>
-                                                </form>
-                                            </li>
-                                            @if (await Model.UserManager.IsInRoleAsync(u, "Admin") && !await Model.UserManager.IsInRoleAsync(u, "SuperAdmin"))
-                                            {
-                                                <li>
-                                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demoteAdmin" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
-                                                        <button class="dropdown-item">Giáng Admin</button>
-                                                    </form>
-                                                </li>
-                                            }
-                                            <li>
-                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="promote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
-                                                    <button class="dropdown-item">Thăng SuperAdmin</button>
-                                                </form>
-                                            </li>
-                                            @if (await Model.UserManager.IsInRoleAsync(u, "SuperAdmin") && u.Id != Model.UserManager.GetUserId(User))
-                                            {
-                                                <li>
-                                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="demote" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user">
-                                                        <button class="dropdown-item">Giáng SuperAdmin</button>
-                                                    </form>
-                                                </li>
-                                            }
-                                            <li>
-                                                <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" onsubmit="return confirm('Xóa người dùng này?');">
-                                                    <button class="dropdown-item text-danger">Xóa</button>
-                                                </form>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+    <div class="tab-content" id="dashboardTabsContent">
+        <!-- Users Tab -->
+        <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Quản lý người dùng</h2>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="mb-3 d-flex align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm người dùng..." />
+                        <select asp-for="PageSize" class="form-select me-2" style="width: 100px;" onchange="this.form.submit()">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Tìm</button>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><a asp-route-sortColumn="username" asp-route-sortDirection="@(Model.SortColumn == "username" && Model.SortDirection == "asc" ? "desc" : "asc")">Tên đăng nhập</a></th>
+                                    <th><a asp-route-sortColumn="email" asp-route-sortDirection="@(Model.SortColumn == "email" && Model.SortDirection == "asc" ? "desc" : "asc")">Email</a></th>
+                                    <th><a asp-route-sortColumn="displayname" asp-route-sortDirection="@(Model.SortColumn == "displayname" && Model.SortDirection == "asc" ? "desc" : "asc")">Tên hiển thị</a></th>
+                                    <th>Vai trò</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var u in Model.Users)
+                                {
+                                    var roles = await UserManager.GetRolesAsync(u);
+                                    <tr>
+                                        <td>@u.UserName</td>
+                                        <td>@u.Email</td>
+                                        <td>@u.DisplayName</td>
+                                        <td>@string.Join(", ", roles)</td>
+                                        <td>
+                                            <div class="dropdown">
+                                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Hành động
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <form method="post" asp-page-handler="Action" class="action-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@u.Id" />
+                                                            <input type="hidden" name="action" value="promoteAdmin" />
+                                                            <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                            <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                            <input type="hidden" name="entityType" value="user" />
+                                                            <button type="submit" class="dropdown-item">Thăng Admin</button>
+                                                        </form>
+                                                    </li>
+                                                    @if (roles.Contains("Admin") && !roles.Contains("SuperAdmin"))
+                                                    {
+                                                        <li>
+                                                            <form method="post" asp-page-handler="Action" class="action-form">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="id" value="@u.Id" />
+                                                                <input type="hidden" name="action" value="demoteAdmin" />
+                                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                                <input type="hidden" name="entityType" value="user" />
+                                                                <button type="submit" class="dropdown-item">Giáng Admin</button>
+                                                            </form>
+                                                        </li>
+                                                    }
+                                                    <li>
+                                                        <form method="post" asp-page-handler="Action" class="action-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@u.Id" />
+                                                            <input type="hidden" name="action" value="promoteDelivery" />
+                                                            <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                            <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                            <input type="hidden" name="entityType" value="user" />
+                                                            <button type="submit" class="dropdown-item">Thăng Delivery</button>
+                                                        </form>
+                                                    </li>
+                                                    @if (roles.Contains("Delivery"))
+                                                    {
+                                                        <li>
+                                                            <form method="post" asp-page-handler="Action" class="action-form">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="id" value="@u.Id" />
+                                                                <input type="hidden" name="action" value="demoteDelivery" />
+                                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                                <input type="hidden" name="entityType" value="user" />
+                                                                <button type="submit" class="dropdown-item">Giáng Delivery</button>
+                                                            </form>
+                                                        </li>
+                                                    }
+                                                    <li>
+                                                        <form method="post" asp-page-handler="Action" class="action-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@u.Id" />
+                                                            <input type="hidden" name="action" value="promote" />
+                                                            <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                            <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                            <input type="hidden" name="entityType" value="user" />
+                                                            <button type="submit" class="dropdown-item">Thăng SuperAdmin</button>
+                                                        </form>
+                                                    </li>
+                                                    @if (roles.Contains("SuperAdmin") && u.Id != UserManager.GetUserId(User))
+                                                    {
+                                                        <li>
+                                                            <form method="post" asp-page-handler="Action" class="action-form">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="id" value="@u.Id" />
+                                                                <input type="hidden" name="action" value="demote" />
+                                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                                <input type="hidden" name="entityType" value="user" />
+                                                                <button type="submit" class="dropdown-item">Giáng SuperAdmin</button>
+                                                            </form>
+                                                        </li>
+                                                    }
+                                                    <li>
+                                                        <form method="post" asp-page-handler="Action" class="action-form" onsubmit="return confirm('Bạn có chắc chắn muốn xóa người dùng này?');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@u.Id" />
+                                                            <input type="hidden" name="action" value="delete" />
+                                                            <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                            <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                            <input type="hidden" name="entityType" value="user" />
+                                                            <button type="submit" class="dropdown-item text-danger">Xóa</button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="User pagination">
+                        <ul class="pagination justify-content-center">
+                            @for (int i = 1; i <= Model.TotalUserPages; i++)
+                            {
+                                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                                    <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm" asp-route-PageSize="@Model.PageSize" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
             </div>
+        </div>
 
-            <nav aria-label="User pagination">
-                <ul class="pagination justify-content-center">
-                    @for (int i = 1; i <= Model.TotalPages; i++)
-                    {
-                        <li class="page-item @(Model.PageIndex == i ? "active" : "")">
-                            <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
-                        </li>
-                    }
-                </ul>
-            </nav>
+        <!-- Organizations Tab -->
+        <div class="tab-pane fade" id="organizations" role="tabpanel" aria-labelledby="organizations-tab">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Quản lý tổ chức</h2>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="mb-3 d-flex align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm tổ chức..." />
+                        <select asp-for="PageSize" class="form-select me-2" style="width: 100px;" onchange="this.form.submit()">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Tìm</button>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><a asp-route-sortColumn="name" asp-route-sortDirection="@(Model.SortColumn == "name" && Model.SortDirection == "asc" ? "desc" : "asc")">Tên tổ chức</a></th>
+                                    <th>Người tạo</th>
+                                    <th>Thành viên</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var org in Model.Organizations)
+                                {
+                                    var creator = await UserManager.FindByIdAsync(org.CreatorId);
+                                    var memberCount = await DbContext.OrganizationMembers.CountAsync(m => m.OrganizationId == org.Id);
+                                    <tr>
+                                        <td>@org.Name</td>
+                                        <td>@(creator?.UserName ?? "Unknown")</td>
+                                        <td>@memberCount</td>
+                                        <td>
+                                            <form method="post" asp-page-handler="Action" class="action-form" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tổ chức này?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@org.Id" />
+                                                <input type="hidden" name="action" value="delete" />
+                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="entityType" value="organization" />
+                                                <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="Organization pagination">
+                        <ul class="pagination justify-content-center">
+                            @for (int i = 1; i <= Model.TotalOrgPages; i++)
+                            {
+                                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                                    <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm" asp-route-PageSize="@Model.PageSize" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Requests Tab -->
+        <div class="tab-pane fade" id="admin-requests" role="tabpanel" aria-labelledby="admin-requests-tab">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Yêu cầu Admin</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tên đăng nhập</th>
+                                    <th>Email</th>
+                                    <th>Tên hiển thị</th>
+                                    <th>Lý do</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var u in Model.AdminRequests)
+                                {
+                                    <tr>
+                                        <td>@u.UserName</td>
+                                        <td>@u.Email</td>
+                                        <td>@u.DisplayName</td>
+                                        <td>@u.AdminRequestReason</td>
+                                        <td>
+                                            <form method="post" asp-page-handler="Action" class="action-form d-inline" onsubmit="return confirm('Chấp nhận yêu cầu Admin cho @u.UserName?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@u.Id" />
+                                                <input type="hidden" name="action" value="approveRequest" />
+                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="entityType" value="user" />
+                                                <button type="submit" class="btn btn-success btn-sm">Chấp nhận</button>
+                                            </form>
+                                            <form method="post" asp-page-handler="Action" class="action-form d-inline" onsubmit="return confirm('Từ chối yêu cầu Admin cho @u.UserName?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@u.Id" />
+                                                <input type="hidden" name="action" value="rejectRequest" />
+                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="entityType" value="user" />
+                                                <button type="submit" class="btn btn-danger btn-sm">Từ chối</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Organization Reports Tab -->
+        <div class="tab-pane fade" id="org-reports" role="tabpanel" aria-labelledby="org-reports-tab">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Báo cáo tổ chức</h2>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="mb-3 d-flex align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm báo cáo..." />
+                        <select asp-for="PageSize" class="form-select me-2" style="width: 100px;" onchange="this.form.submit()">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Tìm</button>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tổ chức</th>
+                                    <th>Người báo cáo</th>
+                                    <th>Lý do</th>
+                                    <th><a asp-route-sortColumn="reportedat" asp-route-sortDirection="@(Model.SortColumn == "reportedat" && Model.SortDirection == "asc" ? "desc" : "asc")">Thời gian</a></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in Model.OrganizationReports)
+                                {
+                                    var org = await DbContext.Organizations.FindAsync(r.OrganizationId);
+                                    var reporter = await UserManager.FindByIdAsync(r.UserId);
+                                    <tr>
+                                        <td>@(org?.Name ?? "Unknown")</td>
+                                        <td>@(reporter?.UserName ?? "Unknown")</td>
+                                        <td>@r.Reason</td>
+                                        <td>@r.ReportedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="Organization report pagination">
+                        <ul class="pagination justify-content-center">
+                            @for (int i = 1; i <= Model.TotalOrgReportPages; i++)
+                            {
+                                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                                    <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm" asp-route-PageSize="@Model.PageSize" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item Reports Tab -->
+        <div class="tab-pane fade" id="item-reports" role="tabpanel" aria-labelledby="item-reports-tab">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Báo cáo vật phẩm</h2>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="mb-3 d-flex align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="SearchTerm" class="form-control me-2" placeholder="Tìm kiếm báo cáo..." />
+                        <select asp-for="PageSize" class="form-select me-2" style="width: 100px;" onchange="this.form.submit()">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Tìm</button>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID vật phẩm</th>
+                                    <th>Người báo cáo</th>
+                                    <th>Lý do</th>
+                                    <th><a asp-route-sortColumn="reportedat" asp-route-sortDirection="@(Model.SortColumn == "reportedat" && Model.SortDirection == "asc" ? "desc" : "asc")">Thời gian</a></th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in Model.ItemReports)
+                                {
+                                    var reporter = await UserManager.FindByIdAsync(r.UserId);
+                                    <tr>
+                                        <td>@r.ItemId</td>
+                                        <td>@(reporter?.UserName ?? "Unknown")</td>
+                                        <td>@r.Reason</td>
+                                        <td>@r.ReportedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>
+                                            <form method="post" asp-page-handler="Action" class="action-form" onsubmit="return confirm('Chấp nhận và xóa báo cáo này?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@r.Id" />
+                                                <input type="hidden" name="action" value="accept" />
+                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="entityType" value="itemReport" />
+                                                <button type="submit" class="btn btn-success btn-sm">Chấp nhận</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="Item report pagination">
+                        <ul class="pagination justify-content-center">
+                            @for (int i = 1; i <= Model.TotalItemReportPages; i++)
+                            {
+                                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
+                                    <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm" asp-route-PageSize="@Model.PageSize" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- Organization Management -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h2 class="card-title mb-0">Quản lý tổ chức</h2>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tên tổ chức</th>
-                            <th>Người tạo</th>
-                            <th>Thành viên</th>
-                            <th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var org in Model.Organizations)
-                        {
-                            var creator = await Model.UserManager.FindByIdAsync(org.CreatorId);
-                            var memberCount = await Model.DbContext.OrganizationMembers.CountAsync(m => m.OrganizationId == org.Id);
-                            <tr>
-                                <td>@org.Name</td>
-                                <td>@(creator?.UserName ?? "Unknown")</td>
-                                <td>@memberCount</td>
-                                <td>
-                                    <form method="post" asp-page-handler="Action" asp-route-id="@org.Id" asp-route-action="delete" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="organization" onsubmit="return confirm('Xóa tổ chức này?');">
-                                        <button class="btn btn-danger btn-sm">Xóa</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <nav aria-label="Organization pagination">
-                <ul class="pagination justify-content-center">
-                    @for (int i = 1; i <= Model.TotalOrgPages; i++)
-                    {
-                        <li class="page-item @(Model.PageIndex == i ? "active" : "")">
-                            <a class="page-link" asp-route-PageIndex="@i" asp-route-SearchTerm="@Model.SearchTerm">@i</a>
-                        </li>
-                    }
-                </ul>
-            </nav>
-        </div>
-    </div>
-
-    <!-- Reports -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h2 class="card-title mb-0">Báo cáo tổ chức</h2>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tổ chức</th>
-                            <th>Người báo cáo</th>
-                            <th>Lý do</th>
-                            <th>Thời gian</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in Model.Reports)
-                        {
-                            var org = await Model.DbContext.Organizations.FindAsync(r.OrganizationId);
-                            var reporter = await Model.UserManager.FindByIdAsync(r.UserId);
-                            <tr>
-                                <td>@(org?.Name ?? "Unknown")</td>
-                                <td>@(reporter?.UserName ?? "Unknown")</td>
-                                <td>@r.Reason</td>
-                                <td>@r.ReportedAt</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Requests -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h2 class="card-title mb-0">Yêu cầu Admin</h2>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Người dùng</th>
-                            <th>Lý do</th>
-                            <th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var u in Model.AdminRequests)
-                        {
-                            <tr>
-                                <td>@u.UserName</td>
-                                <td>@u.AdminRequestReason</td>
-                                <td>
-                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="approveRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" class="d-inline">
-                                        <button class="btn btn-success btn-sm">Chấp nhận</button>
-                                    </form>
-                                    <form method="post" asp-page-handler="Action" asp-route-id="@u.Id" asp-route-action="rejectRequest" asp-route-pageIndex="@Model.PageIndex" asp-route-searchTerm="@Model.SearchTerm" asp-route-entityType="user" class="d-inline">
-                                        <button class="btn btn-danger btn-sm">Từ chối</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+<!-- Loading Spinner -->
+<div class="modal fade" id="loadingSpinner" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .card {
-        border-radius: 0.5rem;
+    .text-gradient {
+        background: linear-gradient(45deg, #007bff, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
+    .bg-gradient-primary {
+        background: linear-gradient(45deg, #007bff, #00d4ff);
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(45deg, #28a745, #34d058);
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(45deg, #ffc107, #ffca2c);
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(45deg, #17a2b8, #1ccad8);
+    }
+
+    .card {
+        border-radius: 0.75rem;
+        transition: transform 0.2s;
+    }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
     .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
+        background-color: #f1faff;
     }
 
     .pagination .page-item.active .page-link {
         background-color: #007bff;
         border-color: #007bff;
     }
+
+    .nav-tabs .nav-link {
+        border-radius: 0.5rem 0.5rem 0 0;
+        margin-right: 5px;
+    }
+
+        .nav-tabs .nav-link.active {
+            background-color: #007bff;
+            color: white;
+        }
 </style>
+
+<script>
+    document.querySelectorAll('form.action-form').forEach(form => {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default to control submission
+            const modal = new bootstrap.Modal(document.getElementById('loadingSpinner'));
+            modal.show();
+            // Submit form after showing spinner
+            setTimeout(() => {
+                form.submit();
+            }, 100); // Small delay to ensure spinner displays
+        });
+    });
+</script>

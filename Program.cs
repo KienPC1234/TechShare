@@ -4,9 +4,10 @@ using LoginSystem.Data;
 using LoginSystem.Models;
 using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.AspNetCore.SignalR; // Required for SignalR
+using DotNetEnv;
 using AspNetCoreRateLimit;
 
+Env.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services

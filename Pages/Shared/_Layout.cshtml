@@ -18,25 +18,60 @@
         html, body {
             height: 100%;
         }
-
         body {
             display: flex;
             flex-direction: column;
         }
-
         main {
             flex: 1 0 auto;
         }
-
         footer {
             flex-shrink: 0;
             width: 100%;
         }
-
-        .dropdown-menu {
-            min-width: 300px;
+        .dropdown-menu.notifications-dropdown, .dropdown-menu.messages-dropdown {
+            min-width: 350px;
             max-height: 400px;
             overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .notification-item, .message-item {
+            transition: background-color 0.2s;
+            position: relative;
+            padding-left: 40px;
+        }
+        .notification-item.unread {
+            background-color: #f8f9fa;
+            font-weight: 500;
+        }
+        .notification-item.unread::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background-color: #dc3545;
+            border-radius: 50%;
+        }
+        .notification-item:hover, .message-item:hover {
+            background-color: #e9ecef;
+        }
+        .notification-icon, .message-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @@keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -74,7 +109,6 @@
                             if (User.IsInRole("SuperAdmin"))
                             {
                                 <li class="nav-item"><a class="nav-link" asp-page="/Dashboard">Dashboard</a></li>
-                                <li class="nav-item"><a class="nav-link" asp-page="/AdminRequests">Yêu Cầu Admin</a></li>
                             }
                         }
                     </ul>
@@ -85,20 +119,15 @@
                             <li class="nav-item dropdown me-2">
                                 <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-bell"></i>
-                                    @{
-                                        var unreadNotifications = await DbContext.Notifications
-                                        .Where(n => n.UserId == UserManager.GetUserId(User) && !n.IsRead)
-                                        .CountAsync();
-                                    }
-                                    <span id="notification-count" class="badge bg-danger rounded-pill position-absolute" style="top: 5px; right: -10px; @(unreadNotifications > 0 ? "" : "display: none;")">@unreadNotifications</span>
+                                    <span id="notification-count" class="badge bg-danger rounded-pill position-absolute" style="top: 5px; right: -10px; display: none;">0</span>
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
+                                <ul class="dropdown-menu dropdown-menu-end notifications-dropdown">
                                     @{
                                         var notifications = await DbContext.Notifications
-                                        .Where(n => n.UserId == UserManager.GetUserId(User))
-                                        .OrderByDescending(n => n.CreatedAt)
-                                        .Take(5)
-                                        .ToListAsync();
+                                            .Where(n => n.UserId == UserManager.GetUserId(User))
+                                            .OrderByDescending(n => n.CreatedAt)
+                                            .Take(5)
+                                            .ToListAsync();
                                     }
                                     @if (notifications.Any())
                                     {
@@ -113,8 +142,21 @@
                                                 "OrganizationJoin" or "OrganizationRoleChange" or "OrganizationComment" or "OrganizationReport" => $"/Organization/Details?slug={await GetOrgSlug(notification.OrganizationId)}",
                                                 _ => "#"
                                             };
+                                            string iconClass = notification.Type switch
+                                            {
+                                                "ItemComment" => "fas fa-comment",
+                                                "ItemRating" => "fas fa-star",
+                                                "ItemReport" => "fas fa-flag",
+                                                "Order" => "fas fa-shopping-cart",
+                                                "OrganizationJoin" => "fas fa-user-plus",
+                                                "OrganizationRoleChange" => "fas fa-user-shield",
+                                                "OrganizationComment" => "fas fa-comments",
+                                                "OrganizationReport" => "fas fa-exclamation-triangle",
+                                                _ => "fas fa-bell"
+                                            };
                                             <li>
-                                                <a class="dropdown-item notification-item" href="@redirectUrl" data-notification-id="@notification.Id">
+                                                <a class="dropdown-item notification-item @(notification.IsRead ? "" : "unread")" href="@redirectUrl" data-notification-id="@notification.Id">
+                                                    <i class="notification-icon @iconClass"></i>
                                                     <small>@notification.Content</small><br />
                                                     <small class="text-muted">@notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
                                                 </a>
@@ -138,24 +180,28 @@
                                 <ul class="dropdown-menu dropdown-menu-end messages-dropdown">
                                     @{
                                         var messages = await DbContext.Messages
-                                        .Where(m => m.ReceiverId == UserManager.GetUserId(User))
-                                        .OrderByDescending(m => m.CreatedAt)
-                                        .Take(15)
-                                        .Select(m => new
-                                        {
-                                            m.Id,
-                                            SenderName = m.Sender.DisplayName ?? m.Sender.UserName,
-                                            m.Content,
-                                            m.CreatedAt
-                                        })
-                                        .ToListAsync();
+                                            .Where(m => m.ReceiverId == UserManager.GetUserId(User))
+                                            .OrderByDescending(m => m.CreatedAt)
+                                            .Take(15)
+                                            .Select(m => new
+                                            {
+                                                m.Id,
+                                                SenderId = m.SenderId,
+                                                SenderName = m.Sender.DisplayName ?? m.Sender.UserName,
+                                                m.Content,
+                                                m.CreatedAt
+                                            })
+                                            .ToListAsync();
                                     }
                                     @if (messages.Any())
                                     {
                                         foreach (var message in messages)
                                         {
                                             <li>
-                                                <a class="dropdown-item message-item" asp-page="/Chat" asp-route-userId="@message.SenderName" data-message-id="@message.Id">
+                                                <a class="dropdown-item message-item" 
+                                                   asp-page="/Chat" asp-route-userId="@message.SenderId" 
+                                                   data-message-id="@message.Id">
+                                                    <i class="message-icon fas fa-user-circle"></i>
                                                     <small><strong>@message.SenderName</strong>: @message.Content.Substring(0, Math.Min(50, message.Content.Length))@(message.Content.Length > 50 ? "..." : "")</small><br />
                                                     <small class="text-muted">@message.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
                                                 </a>
@@ -210,114 +256,149 @@
     @await RenderSectionAsync("Scripts", required: false)
     <script>
         $(document).ready(function () {
+            let unreadCount = 0;
 
-            // SignalR connection for /mesHub
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl("/mesHub")
+            // SignalR connection for /NotificationHub
+            const notificationConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/NotificationHub")
                 .withAutomaticReconnect()
                 .build();
 
-            connection.on("ReceiveMessage", function (message) {
-                console.log("New message received:", {
-                    id: message.id,
-                    senderName: message.senderName,
-                    content: message.content ? message.content.substring(0, 10) + "..." : "undefined",
-                    createdAt: message.createdAt,
-                    receiverId: message.receiverId
-                });
-                const userId = "@UserManager.GetUserId(User)";
-                if (!userId) {
-                    console.log("User ID is empty, skipping message update");
-                    return;
-                }
-                if (message.receiverId !== userId) {
-                    console.log("Message not for this user, skipping");
-                    return;
-                }
-                if (!message.id || !message.senderName || !message.content || !message.createdAt) {
-                    console.log("Invalid message data, skipping");
-                    return;
-                }
-                const $dropdown = $('.messages-dropdown');
-                console.log("Dropdown found:", $dropdown.length > 0 ? "Yes" : "No");
-                if ($dropdown.length === 0) {
-                    console.log("Messages dropdown not found");
-                    return;
-                }
-                const msgItem = `
-                    <li>
-                        <a class="dropdown-item message-item" href="/Messages/Index?userId=${encodeURIComponent(message.senderName)}" data-message-id="${message.id}">
-                            <small><strong>${message.senderName}</strong>: ${message.content.substring(0, 50)}${message.content.length > 50 ? "..." : ""}</small><br />
-                            <small class="text-muted">${new Date(message.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
-                        </a>
-                    </li>`;
-                const $items = $dropdown.find('.message-item');
-                if ($items.length >= 15) {
-                    $items.last().remove();
-                }
-                $dropdown.prepend(msgItem);
-                console.log("Message prepended to dropdown");
-                $('#message-badge').show();
-                console.log("Badge shown");
-            });
-
-            connection.on("ReceiveNotification", function (notificationId, content, createdAt, redirectUrl, type) {
-                console.log("New notification received");
+            notificationConnection.on("ReceiveNotification", function (notificationId, content, createdAt, redirectUrl, type) {
+                console.log("New notification:", { notificationId, content: content.substring(0, 10) + "...", createdAt, type });
+                const $dropdown = $('.notifications-dropdown');
+                if ($dropdown.length === 0) return;
+                const iconClass = {
+                    "ItemComment": "fas fa-comment",
+                    "ItemRating": "fas fa-star",
+                    "ItemReport": "fas fa-flag",
+                    "Order": "fas fa-shopping-cart",
+                    "OrganizationJoin": "fas fa-user-plus",
+                    "OrganizationRoleChange": "fas fa-user-shield",
+                    "OrganizationComment": "fas fa-comments",
+                    "OrganizationReport": "fas fa-exclamation-triangle"
+                }[type] || "fas fa-bell";
                 const notificationItem = `
-                    <li>
-                        <a class="dropdown-item notification-item" href="${redirectUrl}" data-notification-id="${notificationId}">
+                    <li class="fade-in">
+                        <a class="dropdown-item notification-item unread" href="${redirectUrl}" data-notification-id="${notificationId}">
+                            <i class="notification-icon ${iconClass}"></i>
                             <small>${content}</small><br />
                             <small class="text-muted">${new Date(createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
                         </a>
                     </li>`;
-                const $dropdown = $('.dropdown-menu').filter(function () {
-                    return $(this).find('a[href="/Notifications"]').length > 0;
-                });
                 const $items = $dropdown.find('.notification-item');
-                if ($items.length >= 5) {
-                    $items.last().remove();
-                }
+                if ($items.length >= 5) $items.last().remove();
                 $dropdown.prepend(notificationItem);
-                updateNotificationCount();
+                unreadCount++;
+                updateNotificationBadge();
             });
 
-            connection.start().catch(function (err) {
-                console.error("SignalR connection error");
+            notificationConnection.start().catch(function (err) {
+                console.error("NotificationHub error:", err.toString());
             });
 
-            function updateNotificationCount() {
-                $.get('/Notifications/GetUnreadCount', function (count) {
-                    const badge = $('#notification-count');
-                    if (count > 0) {
-                        badge.text(count).show();
-                    } else {
-                        badge.hide();
-                    }
+            // SignalR connection for /mesHub
+            const messageConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/mesHub")
+                .withAutomaticReconnect()
+                .build();
+
+            messageConnection.on("ReceiveMessage", function (message) {
+                console.log("New message:", {
+                    id: message.id,
+                    senderId: message.senderId,
+                    content: message.content ? message.content.substring(0, 10) + "..." : "[media]",
+                    createdAt: message.createdAt
                 });
+                const userId = "@UserManager.GetUserId(User)";
+                if (!userId || message.receiverId !== userId || !message.id || !message.senderId || !message.content || !message.createdAt) return;
+                const $dropdown = $('.messages-dropdown');
+                if ($dropdown.length === 0) return;
+                const msgItem = `
+                    <li class="fade-in">
+                        <a class="dropdown-item message-item" href="/Chat?userId=${message.senderId}" data-message-id="${message.id}">
+                            <i class="message-icon fas fa-user-circle"></i>
+                            <small><strong>${message.senderName || 'Unknown'}</strong>: ${message.content.substring(0, 50)}${message.content.length > 50 ? "..." : ""}</small><br />
+                            <small class="text-muted">${new Date(message.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                        </a>
+                    </li>`;
+                const $items = $dropdown.find('.message-item');
+                if ($items.length >= 15) $items.last().remove();
+                $dropdown.prepend(msgItem);
+                $('#message-badge').show();
+            });
+
+            messageConnection.start().catch(function (err) {
+                console.error("MessHub error:", err.toString());
+            });
+
+            // Mark notification as read
+            $(document).on('click', '.notification-item', function (e) {
+                e.preventDefault();
+                const $item = $(this);
+                const notificationId = $item.data('notification-id');
+                const redirectUrl = $item.attr('href');
+                if ($item.hasClass('unread')) {
+                    $.ajax({
+                        url: `/api/notifications/mark-read/${notificationId}`,
+                        type: 'POST',
+                        success: function () {
+                            $item.removeClass('unread');
+                            unreadCount = Math.max(0, unreadCount - 1);
+                            updateNotificationBadge();
+                            window.location.href = redirectUrl;
+                        },
+                        error: function () {
+                            window.location.href = redirectUrl;
+                        }
+                    });
+                } else {
+                    window.location.href = redirectUrl;
+                }
+            });
+
+            // Navigate to chat
+            $(document).on('click', '.message-item', function (e) {
+                e.preventDefault();
+                const redirectUrl = $(this).attr('href');
+                window.location.href = redirectUrl;
+            });
+
+            function updateNotificationBadge() {
+                const $badge = $('#notification-count');
+                if (unreadCount > 0) {
+                    $badge.text(unreadCount).show();
+                } else {
+                    $badge.hide();
+                }
             }
 
-            updateNotificationCount();
+            // Initial notification count
+            $.get('/api/notifications/unread-count', function (count) {
+                unreadCount = count;
+                updateNotificationBadge();
+            });
+
+            @functions {
+                private async Task<string> GetOrgSlug(string orgId)
+                {
+                    try
+                    {
+                        if (string.IsNullOrEmpty(orgId)) return "#";
+                        var org = await DbContext.Organizations
+                            .AsNoTracking()
+                            .Where(o => o.Id == orgId)
+                            .Select(o => o.Slug)
+                            .FirstOrDefaultAsync();
+                        return org ?? "#";
+                    }
+                    catch
+                    {
+                        return "#";
+                    }
+                }
+            }
         });
-
-        @functions {
-            private async Task<string> GetOrgSlug(string orgId)
-            {
-                try
-                {
-                    if (string.IsNullOrEmpty(orgId)) return "#";
-                    var org = await DbContext.Organizations
-                        .AsNoTracking()
-                        .Where(o => o.Id == orgId)
-                        .Select(o => o.Slug)
-                        .FirstOrDefaultAsync();
-                    return org ?? "#";
-                }
-                catch
-                {
-                    return "#";
-                }
-            }
-        }
     </script>
 </body>
 </html>

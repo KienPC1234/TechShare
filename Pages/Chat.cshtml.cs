@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using LoginSystem.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LoginSystem.Pages
 {
@@ -21,19 +22,37 @@ namespace LoginSystem.Pages
         }
 
         public string CurrentUserId { get; set; } = string.Empty;
+        public string InitialUserId { get; set; } = string.Empty;
 
-        public async Task OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(string userId)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
             {
-                _logger.LogWarning("No user found for chat page access.");
-                CurrentUserId = string.Empty;
+                _logger.LogWarning("No user found for chat page access");
+                return Unauthorized();
             }
-            else
+            CurrentUserId = currentUser.Id;
+            _logger.LogInformation("Chat page accessed by user {UserId}", CurrentUserId);
+
+            if (!string.IsNullOrEmpty(userId))
             {
-                CurrentUserId = user.Id;
+                var targetUser = await _userManager.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Id })
+                    .FirstOrDefaultAsync();
+                if (targetUser != null)
+                {
+                    InitialUserId = targetUser.Id;
+                    _logger.LogInformation("Pre-selecting user {TargetUserId} for chat", InitialUserId);
+                }
+                else
+                {
+                    _logger.LogWarning("Target user {UserId} not found", userId);
+                }
             }
+
+            return Page();
         }
     }
 }

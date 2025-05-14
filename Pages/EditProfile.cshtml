@@ -4,49 +4,146 @@
     ViewData["Title"] = "Edit Profile";
 }
 
-<h1>Edit Profile</h1>
+<div class="container py-5">
+    <h1 class="mb-4">Edit Profile</h1>
 
-<form method="post" enctype="multipart/form-data">
-    <div class="form-group">
-        <label asp-for="Input.Username"></label>
-        <input asp-for="Input.Username" class="form-control" />
-        <span asp-validation-for="Input.Username" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.DisplayName"></label>
-        <input asp-for="Input.DisplayName" class="form-control" />
-        <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.Email"></label>
-        <input asp-for="Input.Email" class="form-control" />
-        <span asp-validation-for="Input.Email" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.Avatar"></label>
-        <input asp-for="Input.Avatar" type="file" class="form-control" accept="image/*" />
-        <span asp-validation-for="Input.Avatar" class="text-danger"></span>
-    </div>
-
-    @if (Model.CurrentUser != null && !Model.CurrentUser.AdminRequestPending)
+    <!-- Notifications -->
+    @if (TempData["SuccessMessage"] != null)
     {
-        <div class="mb-3">
-            <label>Lý do yêu cầu Admin</label>
-            <textarea asp-for="Input.RequestAdminReason" class="form-control"></textarea>
-            <span asp-validation-for="Input.RequestAdminReason" class="text-danger"></span>
-            <button type="submit" asp-page-handler="RequestAdmin" class="btn btn-warning mt-2">Gửi yêu cầu</button>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
-    else if (Model.CurrentUser?.AdminRequestPending == true)
+    @if (TempData["ErrorMessage"] != null)
     {
-        <p class="text-info">Bạn đã gửi yêu cầu lên Admin, đang chờ xét duyệt.</p>
-        <p><strong>Lý do:</strong> @Model.CurrentUser.AdminRequestReason</p>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     }
 
-    <button type="submit" class="btn btn-primary">Save Changes</button>
-    <a asp-page="/Index" class="btn btn-secondary">Cancel</a>
-</form>
+    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate asp-antiforgery="true">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Personal Information</h5>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Username" class="form-label"></label>
+                            <input asp-for="Input.Username" class="form-control" required />
+                            <span asp-validation-for="Input.Username" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.DisplayName" class="form-label"></label>
+                            <input asp-for="Input.DisplayName" class="form-control" required />
+                            <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label"></label>
+                            <input asp-for="Input.Email" class="form-control" required />
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Profile Picture</h5>
+
+                        <div class="mb-3 text-center">
+                            <img id="avatarPreview" src="@(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png")"
+                                 alt="Avatar Preview" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Avatar" class="form-label"></label>
+                            <input asp-for="Input.Avatar" type="file" class="form-control" accept="image/jpeg,image/png"
+                                   onchange="previewAvatar(event)" />
+                            <small class="form-text text-muted">Max size: 2MB. Formats: JPG, PNG. Only image files are allowed.</small>
+                            <span asp-validation-for="Input.Avatar" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.CurrentUser != null && !Model.CurrentUser.AdminRequestPending)
+        {
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Admin Request</h5>
+                    <div class="mb-3">
+                        <label asp-for="Input.RequestAdminReason" class="form-label">Reason for Admin Request</label>
+                        <textarea asp-for="Input.RequestAdminReason" class="form-control" rows="4"></textarea>
+                        <span asp-validation-for="Input.RequestAdminReason" class="text-danger"></span>
+                    </div>
+                    <button type="submit" asp-page-handler="RequestAdmin" class="btn btn-warning">Submit Request</button>
+                </div>
+            </div>
+        }
+        else if (Model.CurrentUser?.AdminRequestPending == true)
+        {
+            <div class="alert alert-info mt-4">
+                <h5>Pending Admin Request</h5>
+                <p>Your admin request is awaiting approval.</p>
+                <p><strong>Reason:</strong> @Model.CurrentUser.AdminRequestReason</p>
+            </div>
+        }
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary me-2" id="saveButton">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                Save Changes
+            </button>
+            <a asp-page="/Index" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        function previewAvatar(event) {
+            const preview = document.getElementById('avatarPreview');
+            const file = event.target.files[0];
+            if (file) {
+                // Basic client-side MIME type check
+                if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                    alert('Only JPG or PNG files are allowed.');
+                    event.target.value = '';
+                    preview.src = '@(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png")';
+                    return;
+                }
+                preview.src = URL.createObjectURL(file);
+            }
+        }
+
+        // Bootstrap form validation
+        (function () {
+            'use strict'
+            const forms = document.querySelectorAll('.needs-validation');
+            Array.from(forms).forEach(form => {
+                form.addEventListener('submit', event => {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+
+        // Show loading spinner on submit
+        document.querySelector('form').addEventListener('submit', function(event) {
+            const saveButton = document.getElementById('saveButton');
+            saveButton.querySelector('.spinner-border').classList.remove('d-none');
+            saveButton.disabled = true;
+        });
+    </script>
 }

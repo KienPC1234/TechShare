@@ -64,60 +64,6 @@ namespace LoginSystem.Pages
             }
         }
 
-        public async Task<IActionResult> OnPostMarkAsReadAsync(string id)
-        {
-            try
-            {
-                var userId = _userManager.GetUserId(User);
-                var notification = await _context.Notifications
-                    .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
-
-                if (notification == null)
-                {
-                    _logger.LogWarning("Notification {NotificationId} not found for user {UserId}", id, userId);
-                    return new JsonResult(new { success = false, message = "Thông báo không tồn tại." });
-                }
-
-                notification.IsRead = true;
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Marked notification {NotificationId} as read for user {UserId}", id, userId);
-                return new JsonResult(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error marking notification {NotificationId} as read for user {UserId}", id, _userManager.GetUserId(User));
-                return new JsonResult(new { success = false, message = $"Lỗi: {ex.Message}" });
-            }
-        }
-
-        public async Task<IActionResult> OnPostDeleteAllAsync()
-        {
-            try
-            {
-                var userId = _userManager.GetUserId(User);
-                _logger.LogInformation("Deleting all notifications for user {UserId}", userId);
-                var notifications = await _context.Notifications
-                    .Where(n => n.UserId == userId)
-                    .ToListAsync();
-
-                if (!notifications.Any())
-                {
-                    _logger.LogInformation("No notifications to delete for user {UserId}", userId);
-                    return new JsonResult(new { success = true, message = "Không có thông báo để xóa." });
-                }
-
-                _context.Notifications.RemoveRange(notifications);
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Deleted {Count} notifications for user {UserId}", notifications.Count, userId);
-                return new JsonResult(new { success = true, message = "Đã xóa tất cả thông báo." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting all notifications for user {UserId}", _userManager.GetUserId(User));
-                return new JsonResult(new { success = false, message = $"Lỗi khi xóa thông báo: {ex.Message}" });
-            }
-        }
-
         public async Task<string> GetOrganizationSlugAsync(string? organizationId)
         {
             if (string.IsNullOrEmpty(organizationId))

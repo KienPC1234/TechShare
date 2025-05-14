@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.884" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.3.0" />
@@ -24,6 +25,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Mime-Detective" Version="25.4.25" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
   </ItemGroup>
