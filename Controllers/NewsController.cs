@@ -11,9 +11,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace LoginSystem.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
     [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
     public class NewsController : ControllerBase
     {
         private readonly ApplicationDbContext _dbContext;

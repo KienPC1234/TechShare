@@ -1,149 +1,840 @@
 ﻿@page
+@using System.Text.Json
 @model LoginSystem.Pages.EditProfileModel
 @{
-    ViewData["Title"] = "Edit Profile";
+    ViewData["Title"] = "Chỉnh sửa hồ sơ";
+    Layout = "_Layout";
+    var avatarJson = JsonSerializer.Serialize(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png");
 }
 
-<div class="container py-5">
-    <h1 class="mb-4">Edit Profile</h1>
+<section class="edit-profile-section py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="mb-5 text-center fw-bold">Chỉnh sửa hồ sơ</h1>
 
-    <!-- Notifications -->
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
+                <!-- Notifications -->
+                <div id="notificationArea"></div>
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                        @TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                        @TempData["ErrorMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
 
-    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate asp-antiforgery="true">
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title mb-4">Personal Information</h5>
+                <!-- Form: Personal Information -->
+                <div class="card shadow-lg mb-4 border-0">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h2 class="mb-0 fw-semibold">Thông tin cá nhân</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="updateProfileForm" enctype="multipart/form-data" class="needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label for="username" class="form-label fw-medium">Tên đăng nhập</label>
+                                    <input id="username" name="username" class="form-control form-control-lg" value="@Model.UpdateProfileInput?.Username" required />
+                                    <span id="usernameError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="displayName" class="form-label fw-medium">Tên hiển thị</label>
+                                    <input id="displayName" name="displayName" class="form-control form-control-lg" value="@Model.UpdateProfileInput?.DisplayName" required />
+                                    <span id="displayNameError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label fw-medium">Bật xác thực hai yếu tố (2FA)</label>
+                                <div class="form-check">
+                                    <input id="enable2FA" name="enable2FA" type="checkbox" class="form-check-input" @(Model.UpdateProfileInput?.Enable2FA == true ? "checked" : "") />
+                                    <label for="enable2FA" class="form-check-label">Kích hoạt 2FA</label>
+                                </div>
+                            </div>
+                            <div id="twoFactorOptions" class="mb-4" style="display: @(Model.UpdateProfileInput?.Enable2FA == true ? "block" : "none");">
+                                <label class="form-label fw-medium">Phương thức 2FA</label>
+                                <div class="form-check">
+                                    <input id="twoFactorTOTP" name="twoFactorMethod" type="radio" value="TOTP" class="form-check-input" @(Model.UpdateProfileInput?.TwoFactorMethod == "TOTP" ? "checked" : "") />
+                                    <label for="twoFactorTOTP" class="form-check-label">Mã OTP (Google Authenticator)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input id="twoFactorEmail" name="twoFactorMethod" type="radio" value="Email" class="form-check-input" @(Model.UpdateProfileInput?.TwoFactorMethod == "Email" ? "checked" : "") />
+                                    <label for="twoFactorEmail" class="form-check-label">Mã OTP qua Email</label>
+                                </div>
+                                <span id="twoFactorMethodError" class="text-danger mt-1 d-block"></span>
+                                <button type="button" class="btn btn-link text-decoration-none p-0 mt-2" id="setup2FAButton" style="display: @(Model.UpdateProfileInput?.Enable2FA == true && Model.UpdateProfileInput?.TwoFactorMethod == "TOTP" ? "block" : "none");" data-bs-toggle="modal" data-bs-target="#passwordModal">Cài đặt OTP</button>
+                            </div>
+                            <div class="row mb-4 align-items-center">
+                                <div class="col-md-6 text-center mb-3 mb-md-0">
+                                    <img id="avatarPreview" src="@Html.Raw(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png")" alt="Avatar Preview" class="rounded-circle mx-auto shadow-sm" style="width: 128px; height: 128px; object-fit: cover;" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="avatar" class="form-label fw-medium">Ảnh đại diện</label>
+                                    <input id="avatar" name="avatar" type="file" class="form-control form-control-lg" accept="image/jpeg,image/png" />
+                                    <small class="form-text text-muted">Kích thước tối đa: 2MB. Định dạng: JPG, PNG. (Tùy chọn, giữ ảnh hiện tại nếu không chọn)</small>
+                                    <span id="avatarError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg transition-all" id="saveProfileButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Lưu thay đổi
+                                </button>
+                                <a asp-page="/Index" class="btn btn-outline-secondary btn-lg transition-all">Hủy</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-                        <div class="mb-3">
-                            <label asp-for="Input.Username" class="form-label"></label>
-                            <input asp-for="Input.Username" class="form-control" required />
-                            <span asp-validation-for="Input.Username" class="text-danger"></span>
+                <!-- Form: Change Password -->
+                <div class="card shadow-lg mb-4 border-0">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h2 class="mb-0 fw-semibold">Thay đổi mật khẩu</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="changePasswordForm" class="needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div class="mb-4">
+                                <label for="currentPassword" class="form-label fw-medium">Mật khẩu hiện tại</label>
+                                <input type="password" id="currentPassword" name="currentPassword" class="form-control form-control-lg" placeholder="Nhập mật khẩu hiện tại" required />
+                                <span id="currentPasswordError" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <div class="mb-4">
+                                <label for="newPassword" class="form-label fw-medium">Mật khẩu mới</label>
+                                <input type="password" id="newPassword" name="newPassword" class="form-control form-control-lg" placeholder="Nhập mật khẩu mới" required />
+                                <span id="newPasswordError" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <div class="mb-4">
+                                <label for="confirmPassword" class="form-label fw-medium">Nhập lại mật khẩu mới</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword" class="form-control form-control-lg" placeholder="Nhập lại mật khẩu mới" required />
+                                <span id="confirmPasswordError" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg transition-all" id="changePasswordButton">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                Thay đổi mật khẩu
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Form: Change Email -->
+                <div class="card shadow-lg mb-4 border-0">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h2 class="mb-0 fw-semibold">Thay đổi Email</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="changeEmailForm" class="needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div class="mb-4">
+                                <label for="newEmail" class="form-label fw-medium">Email mới</label>
+                                <input id="newEmail" name="newEmail" class="form-control form-control-lg" placeholder="Nhập email mới" value="@Model.ChangeEmailInput?.NewEmail" required />
+                                <span id="newEmailError" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg transition-all" id="changeEmailButton">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                Thay đổi Email
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Admin Request -->
+                @if (Model.CurrentUser != null && !Model.CurrentUser.AdminRequestPending)
+                {
+                    <div class="card shadow-lg border-0">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h2 class="mb-0 fw-semibold">Yêu cầu quyền Admin</h2>
                         </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Input.DisplayName" class="form-label"></label>
-                            <input asp-for="Input.DisplayName" class="form-control" required />
-                            <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
+                        <div class="card-body p-4">
+                            <form id="requestAdminForm" class="needs-validation" novalidate>
+                                @Html.AntiForgeryToken()
+                                <div class="mb-4">
+                                    <label for="requestAdminReason" class="form-label fw-medium">Lý do yêu cầu</label>
+                                    <textarea id="requestAdminReason" name="requestAdminReason" class="form-control form-control-lg" rows="4" required></textarea>
+                                    <span id="requestAdminReasonError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                                <button type="submit" class="btn btn-warning btn-lg transition-all" id="requestAdminButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Gửi yêu cầu
+                                </button>
+                            </form>
                         </div>
+                    </div>
+                }
+                else if (Model.CurrentUser?.AdminRequestPending == true)
+                {
+                    <div class="alert alert-info animate__animated animate__fadeIn" role="alert">
+                        <h3 class="alert-heading fw-semibold">Yêu cầu quyền Admin đang chờ xử lý</h3>
+                        <p>Yêu cầu của bạn đang được xem xét.</p>
+                        <p><strong>Lý do:</strong> @Model.CurrentUser.AdminRequestReason</p>
+                    </div>
+                }
 
-                        <div class="mb-3">
-                            <label asp-for="Input.Email" class="form-label"></label>
-                            <input asp-for="Input.Email" class="form-control" required />
-                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                <!-- Modal: Password Verification for 2FA -->
+                <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content shadow-lg">
+                            <div class="modal-header bg-gradient-primary text-white">
+                                <h5 class="modal-title fw-semibold" id="passwordModalLabel">Xác nhận mật khẩu</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-3">Vui lòng nhập mật khẩu để tiếp tục cài đặt 2FA.</p>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label fw-medium">Mật khẩu</label>
+                                    <input type="password" id="password" class="form-control form-control-lg" placeholder="Nhập mật khẩu" required />
+                                    <span id="passwordError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary transition-all" data-bs-dismiss="modal">Hủy</button>
+                                <button type="button" class="btn btn-primary transition-all" id="verifyPasswordButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Xác nhận
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal: Setup 2FA -->
+                <div class="modal fade" id="setup2FAModal" tabindex="-1" aria-labelledby="setup2FAModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content shadow-lg">
+                            <div class="modal-header bg-gradient-primary text-white">
+                                <h5 class="modal-title fw-semibold" id="setup2FAModalLabel">Cài đặt OTP (Google Authenticator)</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <p class="mb-3">1. Quét mã QR dưới đây bằng Google Authenticator hoặc ứng dụng tương tự.</p>
+                                <p class="mb-3">2. Nhập mã OTP 6 chữ số từ ứng dụng để xác nhận.</p>
+                                <div class="mb-4">
+                                    <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid shadow-sm rounded" style="max-width: 200px;" />
+                                </div>
+                                <div class="mb-4">
+                                    <p class="mb-2"><strong>Mã thủ công:</strong> <span id="manualCode" class="font-mono bg-light p-2 rounded"></span></p>
+                                    <button type="button" class="btn btn-outline-primary btn-sm transition-all" id="copyManualCode">Sao chép mã</button>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="totpCode" class="form-label fw-medium">Mã OTP</label>
+                                    <input type="text" id="totpCode" class="form-control form-control-lg text-center" placeholder="Nhập mã 6 chữ số" maxlength="6" pattern="\d{6}" required />
+                                    <span id="totpError" class="text-danger mt-1 d-block"></span>
+                                </div>
+                                <button type="button" class="btn btn-link text-danger p-0" id="resetTOTPButton">Hủy mã TOTP hiện tại và tạo mã mới</button>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary transition-all" data-bs-dismiss="modal">Hủy</button>
+                                <button type="button" class="btn btn-primary transition-all" id="verifyTOTPButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Xác nhận
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title mb-4">Profile Picture</h5>
-
-                        <div class="mb-3 text-center">
-                            <img id="avatarPreview" src="@(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png")"
-                                 alt="Avatar Preview" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Input.Avatar" class="form-label"></label>
-                            <input asp-for="Input.Avatar" type="file" class="form-control" accept="image/jpeg,image/png"
-                                   onchange="previewAvatar(event)" />
-                            <small class="form-text text-muted">Max size: 2MB. Formats: JPG, PNG. Only image files are allowed.</small>
-                            <span asp-validation-for="Input.Avatar" class="text-danger"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
-
-        @if (Model.CurrentUser != null && !Model.CurrentUser.AdminRequestPending)
-        {
-            <div class="card shadow-sm mt-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-4">Admin Request</h5>
-                    <div class="mb-3">
-                        <label asp-for="Input.RequestAdminReason" class="form-label">Reason for Admin Request</label>
-                        <textarea asp-for="Input.RequestAdminReason" class="form-control" rows="4"></textarea>
-                        <span asp-validation-for="Input.RequestAdminReason" class="text-danger"></span>
-                    </div>
-                    <button type="submit" asp-page-handler="RequestAdmin" class="btn btn-warning">Submit Request</button>
-                </div>
-            </div>
-        }
-        else if (Model.CurrentUser?.AdminRequestPending == true)
-        {
-            <div class="alert alert-info mt-4">
-                <h5>Pending Admin Request</h5>
-                <p>Your admin request is awaiting approval.</p>
-                <p><strong>Reason:</strong> @Model.CurrentUser.AdminRequestReason</p>
-            </div>
-        }
-
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary me-2" id="saveButton">
-                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                Save Changes
-            </button>
-            <a asp-page="/Index" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</div>
+    </div>
+</section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <style>
+        .bg-gradient-primary {
+            background: linear-gradient(45deg, #007bff, #00b7eb);
+        }
+
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover.transition-all {
+            transform: translateY(-2px);
+        }
+
+        .card, .modal-content {
+            border-radius: 15px;
+        }
+
+        .form-control-lg {
+            border-radius: 10px;
+        }
+
+        .font-mono {
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
     <script>
-        function previewAvatar(event) {
-            const preview = document.getElementById('avatarPreview');
-            const file = event.target.files[0];
-            if (file) {
-                // Basic client-side MIME type check
-                if (!['image/jpeg', 'image/png'].includes(file.type)) {
-                    alert('Only JPG or PNG files are allowed.');
-                    event.target.value = '';
-                    preview.src = '@(Model.CurrentUser?.AvatarUrl ?? "/images/default-avatar.png")';
-                    return;
-                }
-                preview.src = URL.createObjectURL(file);
+        const defaultAvatarUrl = @Html.Raw(avatarJson);
+
+        // Utility: Show notification
+        function showNotification(message, type) {
+            const notificationArea = document.getElementById('notificationArea');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show animate__animated animate__fadeIn`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            notificationArea.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Utility: Reset button state
+        function resetButtonState(button) {
+            if (button) {
+                const spinner = button.querySelector('.spinner-border');
+                if (spinner) spinner.classList.add('d-none');
+                button.disabled = false;
             }
         }
 
-        // Bootstrap form validation
-        (function () {
-            'use strict'
-            const forms = document.querySelectorAll('.needs-validation');
-            Array.from(forms).forEach(form => {
-                form.addEventListener('submit', event => {
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-        })();
+        // Utility: Log FormData for debugging
+        function logFormData(formData) {
+            console.log('FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: ${value.name} (${value.size} bytes)`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+        }
 
-        // Show loading spinner on submit
-        document.querySelector('form').addEventListener('submit', function(event) {
-            const saveButton = document.getElementById('saveButton');
-            saveButton.querySelector('.spinner-border').classList.remove('d-none');
-            saveButton.disabled = true;
+        // Utility: Create a minimal PNG file
+        function createDummyAvatar() {
+            const minimalPng = new Uint8Array([
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+                0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, // IDAT chunk
+                0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0x3F,
+                0x00, 0x05, 0xFE, 0x02, 0xFE, 0xFD, 0xB7, 0x21,
+                0x9D, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND chunk
+                0x44, 0xAE, 0x42, 0x60, 0x82
+            ]);
+            return new File([minimalPng], "dummy.png", { type: "image/png" });
+        }
+
+        // Form: Update Profile
+        function handleUpdateProfileForm() {
+            const form = document.getElementById('updateProfileForm');
+            const submitButton = document.getElementById('saveProfileButton');
+            const avatarInput = document.getElementById('avatar');
+            const preview = document.getElementById('avatarPreview');
+            const enable2FAInput = document.getElementById('enable2FA');
+
+            // Preview avatar
+            avatarInput.addEventListener('change', function (event) {
+                const file = event.target.files[0];
+                if (file) {
+                    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                        showNotification('Chỉ cho phép file JPG hoặc PNG.', 'danger');
+                        event.target.value = '';
+                        preview.src = defaultAvatarUrl;
+                        return;
+                    }
+                    if (file.size > 2 * 1024 * 1024) {
+                        showNotification('Kích thước file không được vượt quá 2MB.', 'danger');
+                        event.target.value = '';
+                        preview.src = defaultAvatarUrl;
+                        return;
+                    }
+                    preview.src = URL.createObjectURL(file);
+                } else {
+                    preview.src = defaultAvatarUrl;
+                }
+            });
+
+            // Toggle 2FA options
+            enable2FAInput.addEventListener('change', function () {
+                const twoFactorOptions = document.getElementById('twoFactorOptions');
+                const setup2FAButton = document.getElementById('setup2FAButton');
+                twoFactorOptions.style.display = this.checked ? 'block' : 'none';
+                setup2FAButton.style.display = this.checked && document.getElementById('twoFactorTOTP').checked ? 'block' : 'none';
+                // Clear twoFactorMethod if 2FA is disabled
+                if (!this.checked) {
+                    document.querySelectorAll('input[name="twoFactorMethod"]').forEach(radio => radio.checked = false);
+                }
+            });
+
+            document.querySelectorAll('input[name="twoFactorMethod"]').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    document.getElementById('setup2FAButton').style.display = enable2FAInput.checked && this.value === 'TOTP' ? 'block' : 'none';
+                });
+            });
+
+            // Form submission
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (!form.checkValidity()) {
+                    form.classList.add('was-validated');
+                    resetButtonState(submitButton);
+                    return;
+                }
+
+                submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                submitButton.disabled = true;
+
+                const formData = new FormData(form);
+                // Convert enable2FA to boolean
+                formData.set('enable2FA', enable2FAInput.checked.toString());
+                // Ensure twoFactorMethod is set
+                if (!formData.get('twoFactorMethod') && !enable2FAInput.checked) {
+                    formData.set('twoFactorMethod', 'None');
+                } else if (enable2FAInput.checked && !formData.get('twoFactorMethod')) {
+                    showNotification('Vui lòng chọn phương thức 2FA.', 'danger');
+                    resetButtonState(submitButton);
+                    return;
+                }
+                // Handle avatar and avatarAction
+                if (avatarInput.files.length > 0) {
+                    formData.set('avatarAction', 'UpdateRequest');
+                    formData.set('avatar', avatarInput.files[0]);
+                } else {
+                    formData.set('avatarAction', 'NoProfileUpdate');
+                    formData.set('avatar', createDummyAvatar());
+                }
+                logFormData(formData); // Debug FormData
+
+                try {
+                    const response = await fetch('/api/profile/update', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        showNotification('Cập nhật hồ sơ thành công.', 'success');
+                        window.location.reload();
+                    } else {
+                        console.error('API Error:', data);
+                        Object.entries(data.errors || {}).forEach(([key, value]) => {
+                            const errorSpan = document.getElementById(`${key.toLowerCase()}Error`);
+                            if (errorSpan) errorSpan.textContent = Array.isArray(value) ? value[0] : value;
+                        });
+                        showNotification(data.message || 'Cập nhật hồ sơ thất bại.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    showNotification('Lỗi khi cập nhật hồ sơ: ' + error.message, 'danger');
+                } finally {
+                    resetButtonState(submitButton);
+                }
+            });
+        }
+
+        // Form: Change Password
+        function handleChangePasswordForm() {
+            const form = document.getElementById('changePasswordForm');
+            const submitButton = document.getElementById('changePasswordButton');
+
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (!form.checkValidity()) {
+                    form.classList.add('was-validated');
+                    resetButtonState(submitButton);
+                    return;
+                }
+
+                // Client-side password confirmation check
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                if (newPassword !== confirmPassword) {
+                    document.getElementById('confirmPasswordError').textContent = 'Mật khẩu nhập lại không khớp.';
+                    resetButtonState(submitButton);
+                    return;
+                }
+
+                submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                submitButton.disabled = true;
+
+                const formData = new FormData(form);
+                logFormData(formData); // Debug FormData
+
+                try {
+                    const response = await fetch('/api/profile/change-password', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        showNotification('Thay đổi mật khẩu thành công.', 'success');
+                        form.reset();
+                        form.classList.remove('was-validated');
+                    } else {
+                        console.error('API Error:', data);
+                        Object.entries(data.errors || {}).forEach(([key, value]) => {
+                            const errorSpan = document.getElementById(`${key}Error`);
+                            if (errorSpan) errorSpan.textContent = Array.isArray(value) ? value[0] : value;
+                        });
+                        showNotification(data.message || 'Thay đổi mật khẩu thất bại.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    showNotification('Lỗi khi thay đổi mật khẩu: ' + error.message, 'danger');
+                } finally {
+                    resetButtonState(submitButton);
+                }
+            });
+        }
+
+        // Form: Change Email
+        function handleChangeEmailForm() {
+            const form = document.getElementById('changeEmailForm');
+            const submitButton = document.getElementById('changeEmailButton');
+
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (!form.checkValidity()) {
+                    form.classList.add('was-validated');
+                    resetButtonState(submitButton);
+                    return;
+                }
+
+                submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                submitButton.disabled = true;
+
+                const formData = new FormData(form);
+                logFormData(formData); // Debug FormData
+                try {
+                    const response = await fetch('/api/profile/change-email', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        window.location.href = `/VerifyNewEmail?email=${encodeURIComponent(formData.get('newEmail'))}&userId=${data.userId}&sessionId=${data.sessionId}`;
+                    } else {
+                        console.error('API Error:', data);
+                        document.getElementById('newEmailError').textContent = data.errors?.newEmail || data.message || 'Thay đổi email thất bại.';
+                        showNotification(data.message || 'Thay đổi email thất bại.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    showNotification('Lỗi khi thay đổi email: ' + error.message, 'danger');
+                } finally {
+                    resetButtonState(submitButton);
+                }
+            });
+        }
+
+        // Form: Request Admin
+        function handleRequestAdminForm() {
+            const form = document.getElementById('requestAdminForm');
+            const submitButton = document.getElementById('requestAdminButton');
+
+            if (form) {
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    if (!form.checkValidity()) {
+                        form.classList.add('was-validated');
+                        resetButtonState(submitButton);
+                        return;
+                    }
+
+                    submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                    submitButton.disabled = true;
+
+                    const formData = new FormData(form);
+                    logFormData(formData); // Debug FormData
+                    try {
+                        const response = await fetch('/api/profile/request-admin', {
+                            method: 'POST',
+                            headers: {
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: formData
+                        });
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            showNotification('Yêu cầu quyền admin đã được gửi.', 'success');
+                            window.location.reload();
+                        } else {
+                            console.error('API Error:', data);
+                            document.getElementById('requestAdminReasonError').textContent = data.errors?.requestAdminReason || data.message || 'Gửi yêu cầu thất bại.';
+                            showNotification(data.message || 'Gửi yêu cầu thất bại.', 'danger');
+                        }
+                    } catch (error) {
+                        console.error('Fetch Error:', error);
+                        showNotification('Lỗi khi gửi yêu cầu admin: ' + error.message, 'danger');
+                    } finally {
+                        resetButtonState(submitButton);
+                    }
+                });
+            }
+        }
+
+        // 2FA Setup
+        function handle2FASetup() {
+            let sessionId = null; // Initialize as null for clear state
+            const verifyPasswordButton = document.getElementById('verifyPasswordButton');
+            const verifyTOTPButton = document.getElementById('verifyTOTPButton');
+            const resetTOTPButton = document.getElementById('resetTOTPButton');
+            const copyManualCodeButton = document.getElementById('copyManualCode');
+            const setup2FAModal = document.getElementById('setup2FAModal');
+            const passwordModal = document.getElementById('passwordModal');
+
+            // Reset session state and UI, with explicit logging
+            function resetSessionState(source = 'unknown') {
+                console.log(`Resetting session state from: ${source}, previous sessionId: ${sessionId}`);
+                sessionId = null;
+                document.getElementById('qrCodeImage').src = '';
+                document.getElementById('manualCode').textContent = '';
+                document.getElementById('totpCode').value = '';
+                document.getElementById('totpError').textContent = '';
+                document.getElementById('password').value = '';
+                document.getElementById('passwordError').textContent = '';
+            }
+
+            // Handle password verification
+            verifyPasswordButton.addEventListener('click', async function () {
+                const password = document.getElementById('password').value;
+                const errorSpan = document.getElementById('passwordError');
+                if (!password) {
+                    errorSpan.textContent = 'Vui lòng nhập mật khẩu.';
+                    resetButtonState(this);
+                    return;
+                }
+                errorSpan.textContent = '';
+                this.querySelector('.spinner-border').classList.remove('d-none');
+                this.disabled = true;
+
+                try {
+                    const response = await fetch('/api/auth/verify-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({ password })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        sessionId = data.sessionId;
+                        console.log('Password verified, sessionId set:', sessionId);
+                        $('#passwordModal').modal('hide');
+                        $('#setup2FAModal').modal('show');
+                        await fetchTOTPData();
+                    } else {
+                        errorSpan.textContent = data.message || 'Mật khẩu không đúng.';
+                        showNotification(data.message || 'Xác thực mật khẩu thất bại.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    errorSpan.textContent = 'Lỗi khi xác thực mật khẩu.';
+                    showNotification('Lỗi khi xác thực mật khẩu: ' + error.message, 'danger');
+                } finally {
+                    resetButtonState(this);
+                }
+            });
+
+            // Fetch TOTP data
+            async function fetchTOTPData() {
+                if (!sessionId) {
+                    console.warn('No sessionId for fetchTOTPData');
+                    $('#setup2FAModal').modal('hide');
+                    showNotification('Phiên xác thực không hợp lệ. Vui lòng thử lại.', 'danger');
+                    resetSessionState('fetchTOTPData');
+                    $('#passwordModal').modal('show');
+                    return;
+                }
+
+                try {
+                    console.log('Fetching TOTP with sessionId:', sessionId);
+                    const response = await fetch('/api/auth/setup-totp', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
+                            'X-2FA-Session-Id': sessionId
+                        }
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        document.getElementById('qrCodeImage').src = data.qrCodeUrl;
+                        document.getElementById('manualCode').textContent = data.manualCode;
+                        console.log('TOTP data loaded successfully');
+                    } else {
+                        console.warn('Failed to fetch TOTP:', data.message);
+                        $('#setup2FAModal').modal('hide');
+                        showNotification(data.message || 'Không thể cài đặt TOTP.', 'danger');
+                        resetSessionState('fetchTOTPData_error');
+                        $('#passwordModal').modal('show');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error in fetchTOTPData:', error);
+                    $('#setup2FAModal').modal('hide');
+                    showNotification('Lỗi khi cài đặt TOTP: ' + error.message, 'danger');
+                    resetSessionState('fetchTOTPData_catch');
+                    $('#passwordModal').modal('show');
+                }
+            }
+
+            // Copy manual code
+            copyManualCodeButton.addEventListener('click', function () {
+                const manualCode = document.getElementById('manualCode').textContent;
+                if (!manualCode) {
+                    showNotification('Không có mã để sao chép.', 'danger');
+                    return;
+                }
+                navigator.clipboard.writeText(manualCode).then(() => {
+                    this.textContent = 'Đã sao chép!';
+                    setTimeout(() => this.textContent = 'Sao chép mã', 2000);
+                }).catch(() => {
+                    showNotification('Lỗi khi sao chép mã.', 'danger');
+                });
+            });
+
+            // Verify TOTP code
+            verifyTOTPButton.addEventListener('click', async function () {
+                const code = document.getElementById('totpCode').value;
+                const errorSpan = document.getElementById('totpError');
+                if (!/^\d{6}$/.test(code)) {
+                    errorSpan.textContent = 'Mã OTP phải là 6 chữ số.';
+                    resetButtonState(this);
+                    return;
+                }
+                if (!sessionId) {
+                    console.warn('No sessionId for verifyTOTP');
+                    errorSpan.textContent = 'Phiên xác thực không hợp lệ. Vui lòng thử lại.';
+                    $('#setup2FAModal').modal('hide');
+                    showNotification('Phiên xác thực không hợp lệ.', 'danger');
+                    resetSessionState('verifyTOTP_noSession');
+                    $('#passwordModal').modal('show');
+                    return;
+                }
+                errorSpan.textContent = '';
+                this.querySelector('.spinner-border').classList.remove('d-none');
+                this.disabled = true;
+
+                try {
+                    console.log('Verifying TOTP with sessionId:', sessionId);
+                    const response = await fetch('/api/auth/verify-totp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
+                            'X-2FA-Session-Id': sessionId
+                        },
+                        body: JSON.stringify({ code })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        $('#setup2FAModal').modal('hide');
+                        showNotification('Cài đặt OTP thành công!', 'success');
+                        resetSessionState('verifyTOTP_success');
+                        document.getElementById('updateProfileForm').dispatchEvent(new Event('submit'));
+                    } else {
+                        console.warn('TOTP verification failed:', data.message);
+                        errorSpan.textContent = data.message || 'Mã OTP không hợp lệ.';
+                        showNotification(data.message || 'Xác nhận OTP thất bại.', 'danger');
+                        if (data.message.includes('hết hạn') || data.message.includes('không hợp lệ')) {
+                            $('#setup2FAModal').modal('hide');
+                            resetSessionState('verifyTOTP_sessionError');
+                            $('#passwordModal').modal('show');
+                            showNotification('Phiên đã hết hạn. Vui lòng nhập lại mật khẩu để tiếp tục.', 'warning');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Fetch Error in verifyTOTP:', error);
+                    errorSpan.textContent = 'Lỗi khi xác nhận OTP.';
+                    showNotification('Lỗi khi xác nhận OTP: ' + error.message, 'danger');
+                    $('#setup2FAModal').modal('hide');
+                    resetSessionState('verifyTOTP_catch');
+                    $('#passwordModal').modal('show');
+                } finally {
+                    resetButtonState(this);
+                }
+            });
+
+            // Reset TOTP
+            resetTOTPButton.addEventListener('click', async function () {
+                if (!confirm('Bạn có chắc chắn muốn hủy mã TOTP hiện tại và tạo mã mới?')) return;
+                if (!sessionId) {
+                    console.warn('No sessionId for resetTOTP');
+                    $('#setup2FAModal').modal('hide');
+                    showNotification('Phiên xác thực không hợp lệ. Vui lòng thử lại.', 'danger');
+                    resetSessionState('resetTOTP_noSession');
+                    $('#passwordModal').modal('show');
+                    return;
+                }
+
+                try {
+                    console.log('Resetting TOTP with sessionId:', sessionId);
+                    const response = await fetch('/api/auth/reset-totp', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
+                            'X-2FA-Session-Id': sessionId
+                        }
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        await fetchTOTPData();
+                        showNotification('Đã tạo mã TOTP mới.', 'success');
+                    } else {
+                        console.warn('TOTP reset failed:', data.message);
+                        showNotification(data.message || 'Không thể hủy mã TOTP.', 'danger');
+                        if (data.message.includes('hết hạn') || data.message.includes('không hợp lệ')) {
+                            $('#setup2FAModal').modal('hide');
+                            resetSessionState('resetTOTP_sessionError');
+                            $('#passwordModal').modal('show');
+                            showNotification('Phiên đã hết hạn. Vui lòng nhập lại mật khẩu để tiếp tục.', 'warning');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Fetch Error in resetTOTP:', error);
+                    showNotification('Lỗi khi hủy mã TOTP: ' + error.message, 'danger');
+                    $('#setup2FAModal').modal('hide');
+                    resetSessionState('resetTOTP_catch');
+                    $('#passwordModal').modal('show');
+                }
+            });
+
+            // Selective cleanup on modal close
+            setup2FAModal.addEventListener('hidden.bs.modal', () => {
+                if (sessionId) {
+                    console.log('setup2FAModal closed, preserving sessionId:', sessionId);
+                    // Only reset UI, not sessionId, unless explicitly needed
+                    document.getElementById('qrCodeImage').src = '';
+                    document.getElementById('manualCode').textContent = '';
+                    document.getElementById('totpCode').value = '';
+                    document.getElementById('totpError').textContent = '';
+                } else {
+                    resetSessionState('setup2FAModal_close');
+                }
+            });
+
+            passwordModal.addEventListener('hidden.bs.modal', () => {
+                console.log('passwordModal closed, clearing password input');
+                document.getElementById('password').value = '';
+                document.getElementById('passwordError').textContent = '';
+                // Preserve sessionId unless explicitly reset
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            handleUpdateProfileForm();
+            handleChangePasswordForm();
+            handleChangeEmailForm();
+            handleRequestAdminForm();
+            handle2FASetup();
         });
     </script>
 }

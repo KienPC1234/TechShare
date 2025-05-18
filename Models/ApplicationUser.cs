@@ -7,12 +7,10 @@ namespace LoginSystem.Models
         public string? DisplayName { get; set; }
         public string? AvatarUrl { get; set; }
         public DateTime? LastLoginTime { get; set; }
-
-        // Dành cho yêu cầu lên Admin
         public bool AdminRequestPending { get; set; }
         public string? AdminRequestReason { get; set; }
-
-        // Liên kết với tổ chức
-        public string? OrganizationId { get; set; } // ID của tổ chức mà user tham gia
+        public string? OrganizationId { get; set; }
+        public string? TwoFactorMethod { get; set; } // "None", "TOTP", "Email"
+        public string? TwoFactorSecretKey { get; set; }
     }
 }

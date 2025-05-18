@@ -1,0 +1,165 @@
+﻿@page
+@model LoginSystem.Pages.LoginEmailOTPModel
+@{
+    ViewData["Title"] = "Xác thực OTP Email";
+    Layout = "_Layout";
+}
+
+<section class="email-otp-section py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-lg border-0">
+                    <div class="card-header bg-gradient-primary text-white text-center">
+                        <h2 class="mb-0 fw-semibold">Xác thực OTP Email</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                                @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                                {
+                                    <p class="mb-0">@err.ErrorMessage</p>
+                                }
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        }
+
+                        <p class="text-center mb-4">
+                            Vui lòng nhập mã OTP đã được gửi đến email của bạn (@Model.Input.Email).
+                            <br />
+                            Kiểm tra hộp thư đến hoặc thư rác. Mã có hiệu lực trong 15 phút.
+                            <br />
+                            <button type="button" class="btn btn-link text-primary text-decoration-none p-0" id="resendEmailOTP" disabled>Gửi lại mã OTP (<span id="cooldownTimer">30</span>s)</button>
+                        </p>
+
+                        <form method="post" class="needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="Input.UserId" />
+                            <input type="hidden" asp-for="Input.Email" />
+                            <input type="hidden" asp-for="Input.RememberMe" />
+                            <input type="hidden" asp-for="Input.ReturnUrl" />
+                            <div class="mb-4">
+                                <label asp-for="Input.Code" class="form-label fw-medium">Mã OTP</label>
+                                <input asp-for="Input.Code" class="form-control form-control-lg text-center" placeholder="Nhập mã 6 chữ số" required maxlength="6" pattern="\d{6}" />
+                                <span asp-validation-for="Input.Code" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary btn-lg transition-all" id="verifyButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Xác thực
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <style>
+        .bg-gradient-primary {
+            background: linear-gradient(45deg, #007bff, #00b7eb);
+        }
+
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover.transition-all {
+            transform: translateY(-2px);
+        }
+
+        .card {
+            border-radius: 15px;
+        }
+
+        .form-control-lg {
+            border-radius: 10px;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Form validation
+            document.querySelectorAll('.needs-validation').forEach(form => {
+                form.addEventListener('submit', event => {
+                    const code = form.querySelector('input[name="Input.Code"]').value.trim();
+                    if (!/^\d{6}$/.test(code)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        alert('Mã OTP phải là 6 chữ số.');
+                    }
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                    const submitButton = form.querySelector('#verifyButton');
+                    if (submitButton && form.checkValidity()) {
+                        submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                        submitButton.disabled = true;
+                    }
+                }, false);
+            });
+
+            // Cooldown timer for resend button
+            let cooldown = 30;
+            const resendButton = document.getElementById('resendEmailOTP');
+            const timerSpan = document.getElementById('cooldownTimer');
+
+            function updateTimer() {
+                if (cooldown <= 0) {
+                    resendButton.disabled = false;
+                    timerSpan.textContent = '';
+                    resendButton.innerHTML = 'Gửi lại mã OTP';
+                } else {
+                    timerSpan.textContent = cooldown;
+                    cooldown--;
+                    setTimeout(updateTimer, 1000);
+                }
+            }
+            updateTimer();
+
+            // Resend OTP
+            resendButton.addEventListener('click', async function (event) {
+                event.preventDefault();
+                resendButton.disabled = true;
+                resendButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang gửi...';
+
+                try {
+                    const response = await fetch('/api/auth/send-email-otp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({
+                            userId: '@Model.Input.UserId',
+                            email: '@Model.Input.Email'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        alert(data.message || 'Mã OTP đã được gửi.');
+                        cooldown = 30;
+                        resendButton.innerHTML = 'Gửi lại mã OTP (<span id="cooldownTimer">30</span>s)';
+                        updateTimer();
+                    } else {
+                        alert(data.message || 'Không thể gửi mã OTP.');
+                        resendButton.disabled = false;
+                        resendButton.innerHTML = 'Gửi lại mã OTP';
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    alert('Lỗi khi gửi mã OTP: ' + error.message);
+                    resendButton.disabled = false;
+                    resendButton.innerHTML = 'Gửi lại mã OTP';
+                }
+            });
+        });
+    </script>
+}

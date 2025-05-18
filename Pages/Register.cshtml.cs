@@ -1,125 +1,120 @@
-﻿#nullable disable
-
-using Microsoft.AspNetCore.Identity;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using LoginSystem.Models;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using System.Security.Cryptography;
+using System.Linq;
 
 namespace LoginSystem.Pages
 {
     public class RegisterModel : PageModel
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IWebHostEnvironment _environment;
+        private readonly IMemoryCache _cache;
+        private readonly ILogger<RegisterModel> _logger;
+        private const string DefaultAvatar = "/images/default-avatar.png";
 
-        public RegisterModel(UserManager<ApplicationUser> userManager, IWebHostEnvironment environment)
+        public RegisterModel(
+            IMemoryCache cache,
+            ILogger<RegisterModel> logger)
         {
-            _userManager = userManager;
-            _environment = environment;
+            _cache = cache;
+            _logger = logger;
         }
 
         [BindProperty]
-        public InputModel Input { get; set; }  // Nullable property
+        public InputModel Input { get; set; }
 
         public class InputModel
         {
-            [Required]
-            [StringLength(100, MinimumLength = 3)]
-            public string Username { get; set; } = string.Empty;
+            [Required(ErrorMessage = "Vui lòng nhập tên người dùng.")]
+            [StringLength(100, MinimumLength = 3, ErrorMessage = "Tên người dùng phải từ 3 đến 100 ký tự.")]
+            public string Username { get; set; }
 
-            [Required]
-            [StringLength(100, MinimumLength = 3)]
-            public string DisplayName { get; set; } = string.Empty;
+            [Required(ErrorMessage = "Vui lòng nhập tên hiển thị.")]
+            [StringLength(100, MinimumLength = 3, ErrorMessage = "Tên hiển thị phải từ 3 đến 100 ký tự.")]
+            public string DisplayName { get; set; }
 
-            [Required]
-            [EmailAddress]
-            [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Invalid email format.")]
-            public string Email { get; set; } = string.Empty;
+            [Required(ErrorMessage = "Vui lòng nhập email.")]
+            [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ.")]
+            [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Định dạng email không hợp lệ.")]
+            public string Email { get; set; }
 
-            [Required]
+            [Required(ErrorMessage = "Vui lòng nhập mật khẩu.")]
             [DataType(DataType.Password)]
-            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Password must be at least 6 characters, including upper, lower, and number.")]
-            public string Password { get; set; } = string.Empty;
+            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường và số.")]
+            public string Password { get; set; }
 
             [DataType(DataType.Password)]
-            [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
-            public string ConfirmPassword { get; set; } = string.Empty;
+            [Compare("Password", ErrorMessage = "Mật khẩu xác nhận không khớp.")]
+            public string ConfirmPassword { get; set; }
 
-            [DataType(DataType.Upload)]
-            public IFormFile Avatar { get; set; }  // Nullable property
+            public string AvatarRequest { get; set; }
+        }
+
+        public IActionResult OnGet()
+        {
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(m => m.Value.Errors.Any())
+                    .Select(m => new { Field = m.Key, Errors = m.Value.Errors.Select(e => e.ErrorMessage) });
+                _logger.LogWarning("ModelState không hợp lệ khi đăng ký. Lỗi: {Errors}",
+                    string.Join("; ", errors.Select(e => $"{e.Field}: {string.Join(", ", e.Errors)}")));
                 return Page();
-
-            // Kiểm tra username/email đã tồn tại
-            if (await _userManager.FindByNameAsync(Input.Username) != null)
-            {
-                ModelState.AddModelError("Input.Username", "Username already exists.");
-            }
-            if (await _userManager.FindByEmailAsync(Input.Email) != null)
-            {
-                ModelState.AddModelError("Input.Email", "Email already exists.");
             }
 
-            if (!ModelState.IsValid)
-                return Page();
-
-            var user = new ApplicationUser
+            var cacheKey = $"PendingUser_{Input.Email}";
+            if (_cache.TryGetValue(cacheKey, out _))
             {
-                UserName = Input.Username,
-                Email = Input.Email,
-                DisplayName = Input.DisplayName
+                _logger.LogWarning("Email {Email} đã có trong hàng đợi đăng ký", Input.Email);
+                ModelState.AddModelError("Input.Email", "Email đang chờ xác thực. Vui lòng kiểm tra email của bạn.");
+                return Page();
+            }
+
+            var avatarUrl = Input.AvatarRequest == "No Avatar" ? DefaultAvatar : Input.AvatarRequest;
+            if (Input.AvatarRequest != "No Avatar" && !Uri.IsWellFormedUriString(avatarUrl, UriKind.Relative))
+            {
+                _logger.LogWarning("AvatarRequest không hợp lệ: {AvatarRequest}", Input.AvatarRequest);
+                ModelState.AddModelError("Input.AvatarRequest", "URL ảnh đại diện không hợp lệ.");
+                return Page();
+            }
+
+            var userData = new
+            {
+                Input.Username,
+                Input.Email,
+                Input.DisplayName,
+                Input.Password,
+                AvatarUrl = avatarUrl
             };
 
-            // Xử lý avatar
-            if (Input.Avatar != null)
-            {
-                try
-                {
-                    using var image = Image.Load(Input.Avatar.OpenReadStream());
+            var verificationCode = GenerateVerificationCode();
+            var cacheEntry = (Code: verificationCode, Expires: DateTime.UtcNow.AddMinutes(15));
+            _cache.Set($"Verification_{Input.Email}", cacheEntry, TimeSpan.FromMinutes(15));
+            _cache.Set(cacheKey, userData, TimeSpan.FromMinutes(15));
 
-                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "Uploads");
-                    Directory.CreateDirectory(uploadsFolder);
-                    var fileName = Guid.NewGuid().ToString() + ".jpg";
-                    var filePath = Path.Combine(uploadsFolder, fileName);
+            _logger.LogInformation("Lưu dữ liệu đăng ký và mã xác thực cho email {Email}, mã: {Code}, hết hạn: {Expires}",
+                Input.Email, verificationCode, cacheEntry.Expires);
 
-                    // Nén và lưu ảnh JPG với thư viện ImageSharp
-                    image.Mutate(x => x.Resize(500, 500));  // Resize ảnh nếu cần
-                    image.Save(filePath, new JpegEncoder { Quality = 85 });
+            return RedirectToPage("/VerifyEmail", new { email = Input.Email });
+        }
 
-                    user.AvatarUrl = "/Uploads/" + fileName;
-                }
-                catch
-                {
-                    ModelState.AddModelError("Input.Avatar", "The uploaded file is not a valid image.");
-                    return Page();
-                }
-            }
-            else
-            {
-                user.AvatarUrl = "/images/default-avatar.png";
-            }
-
-            var result = await _userManager.CreateAsync(user, Input.Password);
-            if (result.Succeeded)
-            {
-                await _userManager.AddToRoleAsync(user, "User");
-                return RedirectToPage("/Login");
-            }
-
-            foreach (var error in result.Errors)
-            {
-                ModelState.AddModelError(string.Empty, error.Description);
-            }
-
-            return Page();
+        private string GenerateVerificationCode()
+        {
+            using var rng = RandomNumberGenerator.Create();
+            byte[] bytes = new byte[4];
+            rng.GetBytes(bytes);
+            var code = Convert.ToBase64String(bytes).Substring(0, 6).ToUpper();
+            _logger.LogInformation("Tạo mã xác thực: {Code}", code);
+            return code;
         }
     }
 }

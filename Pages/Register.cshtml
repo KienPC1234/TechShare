@@ -1,45 +1,247 @@
 ﻿@page
 @model LoginSystem.Pages.RegisterModel
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Đăng ký";
+    Layout = "_Layout";
 }
 
-<h1>Register</h1>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
-<form method="post" enctype="multipart/form-data">
-    <div class="form-group">
-        <label asp-for="Input.Username"></label>
-        <input asp-for="Input.Username" class="form-control" />
-        <span asp-validation-for="Input.Username" class="text-danger"></span>
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+    }
+
+    .register-section {
+        padding: 60px 0;
+    }
+
+    .register-container {
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        transition: transform 0.3s ease;
+    }
+
+        .register-container:hover {
+            transform: translateY(-5px);
+        }
+
+    h1 {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #34495e;
+    }
+
+    .form-control {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 12px;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .form-control:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+            outline: none;
+        }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #3498db, #2980b9);
+        border: none;
+        border-radius: 10px;
+        padding: 14px;
+        font-weight: 500;
+        text-transform: uppercase;
+        transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #2980b9, #3498db);
+            transform: translateY(-2px);
+        }
+
+    .avatar-preview-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 20px auto;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #f0f0f0;
+    }
+
+    .avatar-preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+
+    .login-link a {
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+    .alert-danger {
+        border-radius: 10px;
+        background: #ffebee;
+        color: #c0392b;
+        font-size: 14px;
+    }
+
+    .text-danger {
+        font-size: 13px;
+        margin-top: 5px;
+        display: block;
+    }
+
+    @@media (max-width: 576px) {
+        .register-container
+
+    {
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    }
+</style>
+
+<section class="register-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="register-container">
+                    <h1 class="mb-5 text-center">Đăng ký tài khoản</h1>
+                    @if (!ModelState.IsValid && ModelState.ContainsKey(string.Empty))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @foreach (var error in ModelState[string.Empty].Errors)
+                            {
+                                <p class="mb-0">@error.ErrorMessage</p>
+                            }
+                        </div>
+                    }
+                    <form method="post" enctype="multipart/form-data" id="registerForm">
+                        <div class="form-group mb-4">
+                            <label asp-for="Input.Username" class="form-label">Tên người dùng</label>
+                            <input asp-for="Input.Username" class="form-control" placeholder="Nhập tên người dùng" />
+                            <span asp-validation-for="Input.Username" class="text-danger"></span>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label asp-for="Input.DisplayName" class="form-label">Tên hiển thị</label>
+                            <input asp-for="Input.DisplayName" class="form-control" placeholder="Nhập tên hiển thị" />
+                            <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label asp-for="Input.Email" class="form-label">Email</label>
+                            <input asp-for="Input.Email" class="form-control" placeholder="Nhập email" />
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label asp-for="Input.Password" class="form-label">Mật khẩu</label>
+                            <input asp-for="Input.Password" class="form-control" placeholder="Nhập mật khẩu" />
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label asp-for="Input.ConfirmPassword" class="form-label">Xác nhận mật khẩu</label>
+                            <input asp-for="Input.ConfirmPassword" class="form-control" placeholder="Xác nhận mật khẩu" />
+                            <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="avatar" class="form-label">Ảnh đại diện (Tùy chọn)</label>
+                            <input type="file" id="avatar" class="form-control" accept="image/*" />
+                            <div class="avatar-preview-container">
+                                <img id="avatarPreview" class="avatar-preview" alt="Xem trước ảnh đại diện" />
+                            </div>
+                            <input type="hidden" asp-for="Input.AvatarRequest" id="avatarRequest" value="No Avatar" />
+                            <span class="text-danger" id="avatarError"></span>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Đăng ký</button>
+                    </form>
+                    <div class="login-link mt-4 text-center">
+                        <p>Đã có tài khoản? <a href="/Login" class="fw-bold">Đăng nhập</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="form-group">
-        <label asp-for="Input.DisplayName"></label>
-        <input asp-for="Input.DisplayName" class="form-control" />
-        <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.Email"></label>
-        <input asp-for="Input.Email" class="form-control" />
-        <span asp-validation-for="Input.Email" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.Password"></label>
-        <input asp-for="Input.Password" class="form-control" />
-        <span asp-validation-for="Input.Password" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.ConfirmPassword"></label>
-        <input asp-for="Input.ConfirmPassword" class="form-control" />
-        <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Input.Avatar"></label>
-        <input asp-for="Input.Avatar" type="file" class="form-control" accept="image/*" />
-        <span asp-validation-for="Input.Avatar" class="text-danger"></span>
-    </div>
-    <button type="submit" class="btn btn-primary">Register</button>
-</form>
+</section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+            $('#avatar').change(function () {
+                var file = this.files[0];
+                if (!file) {
+                    $('#avatarPreview').hide();
+                    $('#avatarRequest').val('No Avatar');
+                    return;
+                }
+
+                // Preview avatar
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#avatarPreview').attr('src', e.target.result).show();
+                };
+                reader.readAsDataURL(file);
+
+                var formData = new FormData();
+                formData.append('file', file);
+
+                $.ajax({
+                    url: '/api/auth/upload-avatar',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $('#avatarRequest').val(response.fileUrl);
+                            $('#avatarError').text('');
+                        } else {
+                            $('#avatarError').text(response.message);
+                            $('#avatarPreview').hide();
+                            $('#avatarRequest').val('No Avatar');
+                        }
+                    },
+                    error: function (xhr) {
+                        var message = xhr.responseJSON?.message || 'Không thể tải lên ảnh đại diện.';
+                        $('#avatarError').text(message);
+                        $('#avatarPreview').hide();
+                        $('#avatarRequest').val('No Avatar');
+                        console.error('Lỗi tải lên:', message);
+                    }
+                });
+            });
+
+            // Ensure AvatarRequest is set to 'No Avatar' if no file is selected
+            $('#registerForm').submit(function () {
+                if (!$('#avatar').val()) {
+                    $('#avatarRequest').val('No Avatar');
+                }
+            });
+        });
+    </script>
 }

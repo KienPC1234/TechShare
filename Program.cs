@@ -1,13 +1,16 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿#nullable disable
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using LoginSystem.Data;
 using LoginSystem.Models;
-using System.Security.Claims;
-using Microsoft.Extensions.Caching.Memory;
+using TechShare.Classes;
 using DotNetEnv;
 using AspNetCoreRateLimit;
-
-Env.Load();
+using LoginSystem.Classes;
+using LoginSystem.Security;
+MailToolBox.EnsureEnvFileAndLoad();
+System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services
@@ -25,22 +28,46 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddMemoryCache();
-builder.Services.AddInMemoryRateLimiting(); // Cài đặt bộ nhớ rate limiting
+builder.Services.AddInMemoryRateLimiting();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
-// Add SignalR services before builder.Build()
 builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
+builder.Services.AddAntiforgery();
+
+// Configure API key
+builder.Services.Configure<ApiKeySettings>(options =>
+{
+    options.ApiKey = builder.Configuration["ApiKey"] ?? Environment.GetEnvironmentVariable("API_KEY") ?? "default-secure-key";
+});
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    options.SignIn.RequireConfirmedAccount = false;
+    options.SignIn.RequireConfirmedAccount = true;
     options.User.RequireUniqueEmail = true;
+    if (builder.Environment.IsDevelopment())
+    {
+        // Disable lockout in development
+        options.Lockout.MaxFailedAccessAttempts = int.MaxValue; // Unlimited attempts
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.Zero; // No lockout
+    }
+    else
+    {
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    }
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddTokenProvider<CustomTOTPTokenProvider<ApplicationUser>>("TOTP")
+.AddTokenProvider<Custom2FATokenProvider<ApplicationUser>>("2FA")
+.AddTokenProvider<CustomEmailTokenProvider<ApplicationUser>>("CustomEmail");
+
+
 
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, CustomClaimsPrincipalFactory>();
+builder.Services.AddScoped<MailToolBox>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -49,6 +76,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LogoutPath = "/Logout";
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.AccessDeniedPath = "/AccessDenied";
     options.Events.OnSigningOut = async context =>
     {
         context.Response.Cookies.Delete("TechShareAuth");
@@ -59,14 +87,35 @@ builder.Services.ConfigureApplicationCookie(options =>
 var app = builder.Build();
 
 // Configure middleware
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 
-app.UseIpRateLimiting();
+// Only apply IP rate-limiting in non-development environments
+if (!app.Environment.IsDevelopment())
+{
+    app.UseIpRateLimiting();
+}
+
 app.UseHttpsRedirection();
+
+// Middleware to inject API key for /api/auth/* requests
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/auth"))
+    {
+        var apiKeySettings = context.RequestServices.GetService<IOptions<ApiKeySettings>>().Value;
+        context.Request.Headers.Append("X-Api-Key", apiKeySettings.ApiKey);
+    }
+    await next();
+});
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
@@ -74,8 +123,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
-
-// Map SignalR hub
 app.MapHub<LoginSystem.Hubs.ChatHub>("/NotificationHub");
 app.MapHub<LoginSystem.Hubs.MessHub>("/mesHub");
 
@@ -83,6 +130,7 @@ await SeedDataAsync(app.Services);
 
 app.Run();
 
+// SeedDataAsync (unchanged)
 static async Task SeedDataAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
@@ -110,7 +158,8 @@ static async Task SeedDataAsync(IServiceProvider services)
             UserName = "superadmin",
             Email = superAdminEmail,
             DisplayName = "Super Admin",
-            AvatarUrl = "/images/default-avatar.png"
+            AvatarUrl = "/images/default-avatar.png",
+            EmailConfirmed = true
         };
         var result = await userManager.CreateAsync(superAdminUser, "SuperAdmin123!");
         if (result.Succeeded)
@@ -129,7 +178,8 @@ static async Task SeedDataAsync(IServiceProvider services)
             UserName = "admin",
             Email = adminEmail,
             DisplayName = "Admin User",
-            AvatarUrl = "/images/default-avatar.png"
+            AvatarUrl = "/images/default-avatar.png",
+            EmailConfirmed = true
         };
         var result = await userManager.CreateAsync(adminUser, "Admin123!");
         if (result.Succeeded)
@@ -148,7 +198,8 @@ static async Task SeedDataAsync(IServiceProvider services)
             UserName = "delivery",
             Email = deliveryEmail,
             DisplayName = "Delivery User",
-            AvatarUrl = "/images/default-avatar.png"
+            AvatarUrl = "/images/default-avatar.png",
+            EmailConfirmed = true
         };
         var result = await userManager.CreateAsync(deliveryUser, "Delivery123!");
         if (result.Succeeded)

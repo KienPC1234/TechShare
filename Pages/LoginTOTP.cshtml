@@ -1,17 +1,17 @@
 ﻿@page
-@model LoginSystem.Pages.LoginModel
+@model LoginSystem.Pages.LoginTOTPModel
 @{
-    ViewData["Title"] = "Đăng nhập";
+    ViewData["Title"] = "Xác thực TOTP";
     Layout = "_Layout";
 }
 
-<section class="login-section py-5 bg-light">
+<section class="totp-section py-5 bg-light">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-6 col-lg-4">
                 <div class="card shadow-lg border-0">
                     <div class="card-header bg-gradient-primary text-white text-center">
-                        <h2 class="mb-0 fw-semibold">Đăng nhập</h2>
+                        <h2 class="mb-0 fw-semibold">Xác thực TOTP</h2>
                     </div>
                     <div class="card-body p-4">
                         @if (!ViewData.ModelState.IsValid)
@@ -25,33 +25,39 @@
                             </div>
                         }
 
-                        <form method="post" asp-page-handler="Login" class="needs-validation" novalidate>
+                        <p class="text-center mb-4">
+                            Vui lòng nhập mã OTP từ Google Authenticator hoặc ứng dụng tương tự.
+                            <br />
+                            Đảm bảo thời gian trên thiết bị của bạn được đồng bộ.
+                            <br />
+                            @if (!string.IsNullOrEmpty(Model.Input.Email))
+                            {
+                                <a asp-page="/LoginEmailOTP" asp-route-userId="@Model.Input.UserId" asp-route-email="@Model.Input.Email" asp-route-rememberMe="@Model.Input.RememberMe" asp-route-returnUrl="@Model.Input.ReturnUrl" class="text-primary text-decoration-none">Sử dụng mã OTP qua email</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Không thể gửi mã OTP qua email. Vui lòng đăng nhập lại hoặc liên hệ hỗ trợ.</span>
+                            }
+                        </p>
+
+                        <form method="post" class="needs-validation" novalidate>
                             @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="Input.UserId" />
+                            <input type="hidden" asp-for="Input.Email" />
+                            <input type="hidden" asp-for="Input.RememberMe" />
                             <input type="hidden" asp-for="Input.ReturnUrl" />
                             <div class="mb-4">
-                                <label asp-for="Input.UsernameOrEmail" class="form-label fw-medium">Tên đăng nhập hoặc Email</label>
-                                <input asp-for="Input.UsernameOrEmail" class="form-control form-control-lg" placeholder="Tên đăng nhập hoặc Email" required />
-                                <span asp-validation-for="Input.UsernameOrEmail" class="text-danger mt-1 d-block"></span>
-                            </div>
-                            <div class="mb-4">
-                                <label asp-for="Input.Password" class="form-label fw-medium">Mật khẩu</label>
-                                <input asp-for="Input.Password" type="password" class="form-control form-control-lg" placeholder="Mật khẩu" required minlength="6" />
-                                <span asp-validation-for="Input.Password" class="text-danger mt-1 d-block"></span>
-                            </div>
-                            <div class="form-check mb-4">
-                                <input asp-for="Input.RememberMe" class="form-check-input" />
-                                <label asp-for="Input.RememberMe" class="form-check-label">Ghi nhớ đăng nhập</label>
+                                <label asp-for="Input.Code" class="form-label fw-medium">Mã TOTP</label>
+                                <input asp-for="Input.Code" class="form-control form-control-lg text-center" placeholder="Nhập mã 6 chữ số" required maxlength="6" pattern="\d{6}" />
+                                <span asp-validation-for="Input.Code" class="text-danger mt-1 d-block"></span>
                             </div>
                             <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-primary btn-lg transition-all" id="loginButton">
+                                <button type="submit" class="btn btn-primary btn-lg transition-all" id="verifyButton">
                                     <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                    Đăng nhập
+                                    Xác thực
                                 </button>
                             </div>
                         </form>
-                    </div>
-                    <div class="card-footer text-center text-muted">
-                        <small>Quên mật khẩu? <a asp-page="/ForgotPassword" class="text-primary text-decoration-none">Khôi phục</a></small>
                     </div>
                 </div>
             </div>
@@ -86,19 +92,18 @@
         $(document).ready(function () {
             document.querySelectorAll('.needs-validation').forEach(form => {
                 form.addEventListener('submit', event => {
-                    const usernameOrEmail = form.querySelector('input[name="Input.UsernameOrEmail"]').value.trim();
-                    const password = form.querySelector('input[name="Input.Password"]').value;
-                    if (!usernameOrEmail || !password) {
+                    const code = form.querySelector('input[name="Input.Code"]').value.trim();
+                    if (!/^\d{6}$/.test(code)) {
                         event.preventDefault();
                         event.stopPropagation();
-                        alert('Vui lòng nhập đầy đủ tên đăng nhập/email và mật khẩu.');
+                        alert('Mã TOTP phải là 6 chữ số.');
                     }
                     if (!form.checkValidity()) {
                         event.preventDefault();
                         event.stopPropagation();
                     }
                     form.classList.add('was-validated');
-                    const submitButton = form.querySelector('#loginButton');
+                    const submitButton = form.querySelector('#verifyButton');
                     if (submitButton && form.checkValidity()) {
                         submitButton.querySelector('.spinner-border').classList.remove('d-none');
                         submitButton.disabled = true;

@@ -1,0 +1,180 @@
+﻿@page
+@model LoginSystem.Pages.VerifyNewEmailModel
+@{
+    ViewData["Title"] = "Xác thực Email mới";
+    Layout = "_Layout";
+}
+
+<section class="verify-section py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-lg border-0">
+                    <div class="card-header bg-gradient-primary text-white text-center">
+                        <h2 class="mb-0 fw-semibold">Xác thực Email mới</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-center mb-4">
+                            Vui lòng nhập mã xác thực 6 chữ số được gửi đến <strong>@Model.Input.NewEmail</strong>.
+                        </p>
+
+                        <!-- Notification Area -->
+                        <div id="notificationArea"></div>
+
+                        @if (TempData["ErrorMessage"] != null)
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                                @TempData["ErrorMessage"]
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        }
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                                @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                                {
+                                    <p class="mb-0">@err.ErrorMessage</p>
+                                }
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        }
+
+                        <form id="verifyForm" method="post" class="needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="Input.NewEmail" />
+                            <input type="hidden" asp-for="Input.UserId" />
+                            <input type="hidden" asp-for="Input.SessionId" />
+                            <div class="mb-4">
+                                <label asp-for="Input.Code" class="form-label fw-medium">Mã xác thực</label>
+                                <input asp-for="Input.Code" class="form-control form-control-lg text-center" placeholder="Nhập mã 6 chữ số" required maxlength="6" pattern="\d{6}" />
+                                <span asp-validation-for="Input.Code" class="text-danger mt-1 d-block"></span>
+                            </div>
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary btn-lg transition-all" id="verifyButton">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    Xác thực
+                                </button>
+                            </div>
+                        </form>
+                        <div class="text-center mt-3">
+                            <button id="resendButton" class="btn btn-link text-primary text-decoration-none">Gửi lại mã xác thực</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <style>
+        .bg-gradient-primary {
+            background: linear-gradient(45deg, #007bff, #00b7eb);
+        }
+
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover.transition-all {
+            transform: translateY(-2px);
+        }
+
+        .card {
+            border-radius: 15px;
+        }
+
+        .form-control-lg {
+            border-radius: 10px;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Client-side validation
+            const form = document.getElementById('verifyForm');
+            form.addEventListener('submit', event => {
+                const codeInput = form.querySelector('input[name="Input.Code"]');
+                const code = codeInput.value.trim();
+                if (!/^\d{6}$/.test(code)) {
+                    codeInput.setCustomValidity('Mã xác thực phải là 6 chữ số.');
+                    codeInput.reportValidity();
+                    event.preventDefault();
+                    event.stopPropagation();
+                } else {
+                    codeInput.setCustomValidity('');
+                }
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+                const submitButton = form.querySelector('#verifyButton');
+                if (submitButton && form.checkValidity()) {
+                    submitButton.querySelector('.spinner-border').classList.remove('d-none');
+                    submitButton.disabled = true;
+                }
+            }, false);
+
+            // Show notification
+            function showNotification(message, type) {
+                const notificationArea = document.getElementById('notificationArea');
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${type} alert-dismissible fade show animate__animated animate__fadeIn`;
+                alert.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                notificationArea.appendChild(alert);
+                setTimeout(() => alert.remove(), 5000);
+            }
+
+            // Resend verification code
+            const resendButton = document.getElementById('resendButton');
+            let currentSessionId = '@Model.Input.SessionId'; // Initial sessionId from model
+
+            resendButton.addEventListener('click', async function () {
+                resendButton.disabled = true;
+                resendButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang gửi...';
+
+                try {
+                    const response = await fetch('/api/auth/resend-email-verification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({ userId: '@Model.Input.UserId', email: '@Model.Input.NewEmail' })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        // Update sessionId in hidden input
+                        currentSessionId = data.sessionId;
+                        const sessionIdInput = document.querySelector('input[name="Input.SessionId"]');
+                        sessionIdInput.value = currentSessionId;
+
+                        showNotification(data.message || 'Mã xác thực đã được gửi lại.', 'success');
+                        // Disable button for 30 seconds to prevent spam
+                        setTimeout(() => {
+                            resendButton.disabled = false;
+                            resendButton.innerHTML = 'Gửi lại mã xác thực';
+                        }, 30000);
+                    } else {
+                        showNotification(data.message || 'Không thể gửi lại mã xác thực.', 'danger');
+                        resendButton.disabled = false;
+                        resendButton.innerHTML = 'Gửi lại mã xác thực';
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    let message = error.message || 'Không thể gửi lại mã xác thực.';
+                    if (error.status === 429) {
+                        message = 'Vui lòng đợi vài phút trước khi yêu cầu mã mới.';
+                    }
+                    showNotification(message, 'danger');
+                    resendButton.disabled = false;
+                    resendButton.innerHTML = 'Gửi lại mã xác thực';
+                }
+            });
+        });
+    </script>
+}
