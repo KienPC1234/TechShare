@@ -185,7 +185,7 @@
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p class="mb-3">Vui lòng nhập mật khẩu để tiếp tục cài đặt 2FA.</p>
+                                <p class="mb-3">Vui lòng nhập mật khẩu để tiếp tục.</p>
                                 <div class="mb-3">
                                     <label for="password" class="form-label fw-medium">Mật khẩu</label>
                                     <input type="password" id="password" class="form-control form-control-lg" placeholder="Nhập mật khẩu" required />
@@ -310,14 +310,14 @@
         // Utility: Create a minimal PNG file
         function createDummyAvatar() {
             const minimalPng = new Uint8Array([
-                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
                 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
                 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-                0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, // IDAT chunk
+                0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
                 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0x3F,
                 0x00, 0x05, 0xFE, 0x02, 0xFE, 0xFD, 0xB7, 0x21,
-                0x9D, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND chunk
+                0x9D, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
                 0x44, 0xAE, 0x42, 0x60, 0x82
             ]);
             return new File([minimalPng], "dummy.png", { type: "image/png" });
@@ -330,6 +330,8 @@
             const avatarInput = document.getElementById('avatar');
             const preview = document.getElementById('avatarPreview');
             const enable2FAInput = document.getElementById('enable2FA');
+            let pending2FAChange = false;
+            let verifiedPassword = false;
 
             // Preview avatar
             avatarInput.addEventListener('change', function (event) {
@@ -359,9 +361,18 @@
                 const setup2FAButton = document.getElementById('setup2FAButton');
                 twoFactorOptions.style.display = this.checked ? 'block' : 'none';
                 setup2FAButton.style.display = this.checked && document.getElementById('twoFactorTOTP').checked ? 'block' : 'none';
-                // Clear twoFactorMethod if 2FA is disabled
                 if (!this.checked) {
                     document.querySelectorAll('input[name="twoFactorMethod"]').forEach(radio => radio.checked = false);
+                    const was2FAEnabled = @Html.Raw(Model.UpdateProfileInput?.Enable2FA == true ? "true" : "false");
+                    if (was2FAEnabled) {
+                        pending2FAChange = true;
+                        $('#passwordModal').modal('show');
+                        document.getElementById('passwordModalLabel').textContent = 'Xác nhận mật khẩu để tắt 2FA';
+                    } else {
+                        pending2FAChange = false;
+                    }
+                } else {
+                    pending2FAChange = false;
                 }
             });
 
@@ -384,9 +395,7 @@
                 submitButton.disabled = true;
 
                 const formData = new FormData(form);
-                // Convert enable2FA to boolean
                 formData.set('enable2FA', enable2FAInput.checked.toString());
-                // Ensure twoFactorMethod is set
                 if (!formData.get('twoFactorMethod') && !enable2FAInput.checked) {
                     formData.set('twoFactorMethod', 'None');
                 } else if (enable2FAInput.checked && !formData.get('twoFactorMethod')) {
@@ -394,7 +403,6 @@
                     resetButtonState(submitButton);
                     return;
                 }
-                // Handle avatar and avatarAction
                 if (avatarInput.files.length > 0) {
                     formData.set('avatarAction', 'UpdateRequest');
                     formData.set('avatar', avatarInput.files[0]);
@@ -402,7 +410,12 @@
                     formData.set('avatarAction', 'NoProfileUpdate');
                     formData.set('avatar', createDummyAvatar());
                 }
-                logFormData(formData); // Debug FormData
+                const was2FAEnabled = @Html.Raw(Model.UpdateProfileInput?.Enable2FA == true ? "true" : "false");
+                if (was2FAEnabled && !enable2FAInput.checked) {
+                    formData.set('verifiedPassword', verifiedPassword.toString());
+                }
+
+                logFormData(formData);
 
                 try {
                     const response = await fetch('/api/profile/update', {
@@ -431,6 +444,16 @@
                     resetButtonState(submitButton);
                 }
             });
+
+            document.getElementById('passwordModal').addEventListener('hidden.bs.modal', () => {
+                if (pending2FAChange && !verifiedPassword) {
+                    enable2FAInput.checked = true;
+                    showNotification('Xác minh mật khẩu bị hủy. 2FA vẫn được bật.', 'warning');
+                    pending2FAChange = false;
+                }
+                document.getElementById('password').value = '';
+                document.getElementById('passwordError').textContent = '';
+            });
         }
 
         // Form: Change Password
@@ -446,7 +469,6 @@
                     return;
                 }
 
-                // Client-side password confirmation check
                 const newPassword = document.getElementById('newPassword').value;
                 const confirmPassword = document.getElementById('confirmPassword').value;
                 if (newPassword !== confirmPassword) {
@@ -459,7 +481,7 @@
                 submitButton.disabled = true;
 
                 const formData = new FormData(form);
-                logFormData(formData); // Debug FormData
+                logFormData(formData);
 
                 try {
                     const response = await fetch('/api/profile/change-password', {
@@ -508,7 +530,7 @@
                 submitButton.disabled = true;
 
                 const formData = new FormData(form);
-                logFormData(formData); // Debug FormData
+                logFormData(formData);
                 try {
                     const response = await fetch('/api/profile/change-email', {
                         method: 'POST',
@@ -552,7 +574,7 @@
                     submitButton.disabled = true;
 
                     const formData = new FormData(form);
-                    logFormData(formData); // Debug FormData
+                    logFormData(formData);
                     try {
                         const response = await fetch('/api/profile/request-admin', {
                             method: 'POST',
@@ -582,7 +604,9 @@
 
         // 2FA Setup
         function handle2FASetup() {
-            let sessionId = null; // Initialize as null for clear state
+            let sessionId = null;
+            let pending2FAChange = false;
+            let verifiedPassword = false;
             const verifyPasswordButton = document.getElementById('verifyPasswordButton');
             const verifyTOTPButton = document.getElementById('verifyTOTPButton');
             const resetTOTPButton = document.getElementById('resetTOTPButton');
@@ -590,7 +614,7 @@
             const setup2FAModal = document.getElementById('setup2FAModal');
             const passwordModal = document.getElementById('passwordModal');
 
-            // Reset session state and UI, with explicit logging
+            // Reset session state and UI
             function resetSessionState(source = 'unknown') {
                 console.log(`Resetting session state from: ${source}, previous sessionId: ${sessionId}`);
                 sessionId = null;
@@ -601,48 +625,6 @@
                 document.getElementById('password').value = '';
                 document.getElementById('passwordError').textContent = '';
             }
-
-            // Handle password verification
-            verifyPasswordButton.addEventListener('click', async function () {
-                const password = document.getElementById('password').value;
-                const errorSpan = document.getElementById('passwordError');
-                if (!password) {
-                    errorSpan.textContent = 'Vui lòng nhập mật khẩu.';
-                    resetButtonState(this);
-                    return;
-                }
-                errorSpan.textContent = '';
-                this.querySelector('.spinner-border').classList.remove('d-none');
-                this.disabled = true;
-
-                try {
-                    const response = await fetch('/api/auth/verify-password', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        },
-                        body: JSON.stringify({ password })
-                    });
-                    const data = await response.json();
-                    if (response.ok && data.success) {
-                        sessionId = data.sessionId;
-                        console.log('Password verified, sessionId set:', sessionId);
-                        $('#passwordModal').modal('hide');
-                        $('#setup2FAModal').modal('show');
-                        await fetchTOTPData();
-                    } else {
-                        errorSpan.textContent = data.message || 'Mật khẩu không đúng.';
-                        showNotification(data.message || 'Xác thực mật khẩu thất bại.', 'danger');
-                    }
-                } catch (error) {
-                    console.error('Fetch Error:', error);
-                    errorSpan.textContent = 'Lỗi khi xác thực mật khẩu.';
-                    showNotification('Lỗi khi xác thực mật khẩu: ' + error.message, 'danger');
-                } finally {
-                    resetButtonState(this);
-                }
-            });
 
             // Fetch TOTP data
             async function fetchTOTPData() {
@@ -684,6 +666,56 @@
                     $('#passwordModal').modal('show');
                 }
             }
+
+            // Handle password verification
+            verifyPasswordButton.addEventListener('click', async function () {
+                const password = document.getElementById('password').value;
+                const errorSpan = document.getElementById('passwordError');
+                if (!password) {
+                    errorSpan.textContent = 'Vui lòng nhập mật khẩu.';
+                    resetButtonState(this);
+                    return;
+                }
+                errorSpan.textContent = '';
+                this.querySelector('.spinner-border').classList.remove('d-none');
+                this.disabled = true;
+
+                try {
+                    const endpoint = pending2FAChange ? '/api/profile/verify-password-disable-2fa' : '/api/auth/verify-password';
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({ password })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        if (pending2FAChange) {
+                            verifiedPassword = true;
+                            showNotification('Mật khẩu xác minh thành công. Bạn có thể tắt 2FA.', 'success');
+                            $('#passwordModal').modal('hide');
+                            document.getElementById('updateProfileForm').dispatchEvent(new Event('submit'));
+                        } else {
+                            sessionId = data.sessionId;
+                            console.log('Password verified for 2FA setup, sessionId set:', sessionId);
+                            $('#passwordModal').modal('hide');
+                            $('#setup2FAModal').modal('show');
+                            await fetchTOTPData();
+                        }
+                    } else {
+                        errorSpan.textContent = data.message || 'Mật khẩu không đúng.';
+                        showNotification(data.message || 'Xác thực mật khẩu thất bại.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Fetch Error:', error);
+                    errorSpan.textContent = 'Lỗi khi xác thực mật khẩu.';
+                    showNotification('Lỗi khi xác thực mật khẩu: ' + error.message, 'danger');
+                } finally {
+                    resetButtonState(this);
+                }
+            });
 
             // Copy manual code
             copyManualCodeButton.addEventListener('click', function () {
@@ -806,17 +838,16 @@
                 }
             });
 
-            // Selective cleanup on modal close
+            // Modal closure handling
             setup2FAModal.addEventListener('hidden.bs.modal', () => {
-                if (sessionId) {
-                    console.log('setup2FAModal closed, preserving sessionId:', sessionId);
-                    // Only reset UI, not sessionId, unless explicitly needed
+                console.log('setup2FAModal closed, sessionId:', sessionId);
+                if (!sessionId) {
+                    resetSessionState('setup2FAModal_close');
+                } else {
                     document.getElementById('qrCodeImage').src = '';
                     document.getElementById('manualCode').textContent = '';
                     document.getElementById('totpCode').value = '';
                     document.getElementById('totpError').textContent = '';
-                } else {
-                    resetSessionState('setup2FAModal_close');
                 }
             });
 
@@ -824,7 +855,6 @@
                 console.log('passwordModal closed, clearing password input');
                 document.getElementById('password').value = '';
                 document.getElementById('passwordError').textContent = '';
-                // Preserve sessionId unless explicitly reset
             });
         }
 

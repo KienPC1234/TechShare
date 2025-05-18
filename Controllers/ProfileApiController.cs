@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TechShare.Classes;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
 
 namespace LoginSystem.Controllers
 {
@@ -65,6 +66,8 @@ namespace LoginSystem.Controllers
 
             [StringLength(10)]
             public string TwoFactorMethod { get; set; }
+
+            public bool VerifiedPassword { get; set; } // Thêm trường để kiểm tra xác minh mật khẩu
         }
 
         public class ChangeEmailInputModel
@@ -97,6 +100,54 @@ namespace LoginSystem.Controllers
             public string ConfirmPassword { get; set; }
         }
 
+        public class VerifyPasswordInputModel
+        {
+            [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+            [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải từ 6 đến 100 ký tự")]
+            public string Password { get; set; }
+        }
+
+        [HttpPost("verify-password-disable-2fa")]
+        public async Task<IActionResult> VerifyPasswordDisable2FA([FromBody] VerifyPasswordInputModel input)
+        {
+            try
+            {
+                _logger.LogInformation("Processing VerifyPasswordDisable2FA request");
+
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    _logger.LogWarning("Không tìm thấy người dùng để xác minh mật khẩu");
+                    return NotFound(new { success = false, message = "Không tìm thấy người dùng." });
+                }
+
+                // Validate input
+                var validationContext = new ValidationContext(input);
+                var validationResults = new List<ValidationResult>();
+                if (!Validator.TryValidateObject(input, validationContext, validationResults, true))
+                {
+                    var errors = validationResults.ToDictionary(v => char.ToLower(v.MemberNames.First()[0]) + v.MemberNames.First().Substring(1), v => v.ErrorMessage);
+                    _logger.LogWarning("Validation errors: {Errors}", errors);
+                    return BadRequest(new { success = false, errors });
+                }
+
+                // Verify password
+                var passwordCheck = await _userManager.CheckPasswordAsync(user, input.Password);
+                if (!passwordCheck)
+                {
+                    _logger.LogWarning("Incorrect password for user: {Username}", user.UserName);
+                    return BadRequest(new { success = false, message = "Mật khẩu không đúng." });
+                }
+
+                _logger.LogInformation("Password verified successfully for disabling 2FA for user: {Username}", user.UserName);
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying password for disabling 2FA");
+                return StatusCode(500, new { success = false, message = "Lỗi server khi xác minh mật khẩu: " + ex.Message });
+            }
+        }
 
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromForm] ChangePasswordInputModel input)
@@ -155,8 +206,8 @@ namespace LoginSystem.Controllers
         {
             try
             {
-                _logger.LogInformation("Processing UpdateProfile request: Username={Username}, Enable2FA={Enable2FA}, TwoFactorMethod={TwoFactorMethod}, HasAvatar={HasAvatar}, AvatarAction={AvatarAction}",
-                    input.Username, input.Enable2FA, input.TwoFactorMethod, input.Avatar != null, input.AvatarAction);
+                _logger.LogInformation("Processing UpdateProfile request: Username={Username}, Enable2FA={Enable2FA}, TwoFactorMethod={TwoFactorMethod}, HasAvatar={HasAvatar}, AvatarAction={AvatarAction}, VerifiedPassword={VerifiedPassword}",
+                    input.Username, input.Enable2FA, input.TwoFactorMethod, input.Avatar != null, input.AvatarAction, input.VerifiedPassword);
 
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
@@ -204,11 +255,19 @@ namespace LoginSystem.Controllers
                     input.TwoFactorMethod = "None";
                 }
 
+                // Check if disabling 2FA and verify password
+                var is2FAEnabled = await _userManager.GetTwoFactorEnabledAsync(user);
+                if (is2FAEnabled && !input.Enable2FA && !input.VerifiedPassword)
+                {
+                    _logger.LogWarning("Attempt to disable 2FA without password verification for user: {Username}", user.UserName);
+                    return BadRequest(new { success = false, errors = new { enable2FA = "Vui lòng xác minh mật khẩu để tắt 2FA." } });
+                }
+
                 // Check for changes
                 bool hasChanges = user.UserName != input.Username ||
                                  user.DisplayName != input.DisplayName ||
                                  input.AvatarAction == "UpdateRequest" ||
-                                 await _userManager.GetTwoFactorEnabledAsync(user) != input.Enable2FA ||
+                                 is2FAEnabled != input.Enable2FA ||
                                  user.TwoFactorMethod != input.TwoFactorMethod;
 
                 // Update user

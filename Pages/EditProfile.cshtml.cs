@@ -3,8 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Razor;
-
+using System.ComponentModel.DataAnnotations;
 
 namespace LoginSystem.Pages
 {
@@ -35,27 +34,50 @@ namespace LoginSystem.Pages
 
         public class UpdateProfileInputModel
         {
+            [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
+            [StringLength(100, MinimumLength = 3, ErrorMessage = "Tên đăng nhập phải từ 3 đến 100 ký tự")]
+            [RegularExpression(@"^[a-zA-Z0-9_-]+$", ErrorMessage = "Tên đăng nhập chỉ được chứa chữ, số, dấu gạch dưới và dấu gạch ngang")]
             public string Username { get; set; }
+
+            [Required(ErrorMessage = "Tên hiển thị là bắt buộc")]
+            [StringLength(100, MinimumLength = 3, ErrorMessage = "Tên hiển thị phải từ 3 đến 100 ký tự")]
             public string DisplayName { get; set; }
+
             public IFormFile Avatar { get; set; }
+
             public bool Enable2FA { get; set; }
+
+            [StringLength(10)]
             public string TwoFactorMethod { get; set; }
         }
 
         public class ChangeEmailInputModel
         {
+            [Required(ErrorMessage = "Email mới là bắt buộc")]
+            [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
             public string NewEmail { get; set; }
         }
 
         public class RequestAdminInputModel
         {
+            [Required(ErrorMessage = "Lý do là bắt buộc")]
+            [StringLength(300, ErrorMessage = "Lý do không được vượt quá 300 ký tự")]
             public string RequestAdminReason { get; set; }
         }
 
         public class ChangePasswordInputModel
         {
+            [Required(ErrorMessage = "Mật khẩu hiện tại là bắt buộc")]
+            [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu hiện tại phải từ 6 đến 100 ký tự")]
             public string CurrentPassword { get; set; }
+
+            [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
+            [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu mới phải từ 6 đến 100 ký tự")]
+            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$", ErrorMessage = "Mật khẩu mới phải chứa ít nhất một chữ cái in hoa, một chữ cái thường và một số")]
             public string NewPassword { get; set; }
+
+            [Required(ErrorMessage = "Xác nhận mật khẩu là bắt buộc")]
+            [Compare("NewPassword", ErrorMessage = "Mật khẩu xác nhận không khớp")]
             public string ConfirmPassword { get; set; }
         }
 
