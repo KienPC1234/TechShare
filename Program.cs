@@ -9,11 +9,17 @@ using DotNetEnv;
 using AspNetCoreRateLimit;
 using LoginSystem.Classes;
 using LoginSystem.Security;
+using Owl.reCAPTCHA;
+
+
 MailToolBox.EnsureEnvFileAndLoad();
 System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+
+
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
+
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -33,7 +39,13 @@ builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection(
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 builder.Services.AddSignalR();
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>(client =>
+{
+    client.BaseAddress = new Uri("https://www.google.com/"); // Base URL for reCAPTCHA API
+});
+
+builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
+
 builder.Services.AddAntiforgery();
 
 // Configure API key
@@ -68,7 +80,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, CustomClaimsPrincipalFactory>();
 builder.Services.AddScoped<MailToolBox>();
-
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "TechShareAuth";

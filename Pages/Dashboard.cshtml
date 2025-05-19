@@ -8,6 +8,8 @@
     ViewData["Title"] = "Quản lý hệ thống";
 }
 
+
+
 <div class="container-fluid py-4">
     <h1 class="mb-4 text-gradient">Quản lý hệ thống</h1>
 
@@ -453,6 +455,7 @@
                         <table class="table table-hover">
                             <thead class="table-light">
                                 <tr>
+                                    <th><a asp-route-sortColumn="itemtitle" asp-route-sortDirection="@(Model.SortColumn == "itemtitle" && Model.SortDirection == "asc" ? "desc" : "asc")">Tên vật phẩm</a></th>
                                     <th>ID vật phẩm</th>
                                     <th>Người báo cáo</th>
                                     <th>Lý do</th>
@@ -464,13 +467,23 @@
                                 @foreach (var r in Model.ItemReports)
                                 {
                                     var reporter = await UserManager.FindByIdAsync(r.UserId);
+                                    var item = await DbContext.ExchangeItems.FindAsync(r.ItemId);
                                     <tr>
+                                        <td>@(item?.Title ?? "Unknown")</td>
                                         <td>@r.ItemId</td>
                                         <td>@(reporter?.UserName ?? "Unknown")</td>
                                         <td>@r.Reason</td>
                                         <td>@r.ReportedAt.ToString("dd/MM/yyyy HH:mm")</td>
                                         <td>
-                                            <form method="post" asp-page-handler="Action" class="action-form" onsubmit="return confirm('Chấp nhận và xóa báo cáo này?');">
+                                            <button type="button" class="btn btn-info btn-sm view-report-btn" 
+                                                    data-report-id="@r.Id" 
+                                                    data-item-title="@(item?.Title ?? "Unknown")" 
+                                                    data-reporter="@(reporter?.UserName ?? "Unknown")" 
+                                                    data-reason="@r.Reason" 
+                                                    data-reported-at="@r.ReportedAt.ToString("dd/MM/yyyy HH:mm")">
+                                                Xem
+                                            </button>
+                                            <form method="post" asp-page-handler="Action" class="action-form d-inline" onsubmit="return confirm('Chấp nhận và xóa báo cáo này?');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@r.Id" />
                                                 <input type="hidden" name="action" value="accept" />
@@ -479,6 +492,20 @@
                                                 <input type="hidden" name="pageSize" value="@Model.PageSize" />
                                                 <input type="hidden" name="entityType" value="itemReport" />
                                                 <button type="submit" class="btn btn-success btn-sm">Chấp nhận</button>
+                                            </form>
+                                            @{
+                                                var itemTitle = item?.Title ?? "Unknown";
+                                                var jsSafeTitle = itemTitle.Replace("\"", "\\\""); // escape dấu "
+                                            }
+                                            <form method="post" asp-page-handler="Action" class="action-form d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa vật phẩm &quot;@jsSafeTitle&quot;?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@r.ItemId" />
+                                                <input type="hidden" name="action" value="deleteItem" />
+                                                <input type="hidden" name="pageIndex" value="@Model.PageIndex" />
+                                                <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="entityType" value="item" />
+                                                <button type="submit" class="btn btn-danger btn-sm">Xóa vật phẩm</button>
                                             </form>
                                         </td>
                                     </tr>
@@ -520,62 +547,72 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-
     .bg-gradient-primary {
         background: linear-gradient(45deg, #007bff, #00d4ff);
     }
-
     .bg-gradient-success {
         background: linear-gradient(45deg, #28a745, #34d058);
     }
-
     .bg-gradient-warning {
         background: linear-gradient(45deg, #ffc107, #ffca2c);
     }
-
     .bg-gradient-info {
         background: linear-gradient(45deg, #17a2b8, #1ccad8);
     }
-
     .card {
         border-radius: 0.75rem;
         transition: transform 0.2s;
     }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
+    .card:hover {
+        transform: translateY(-5px);
+    }
     .table-hover tbody tr:hover {
         background-color: #f1faff;
     }
-
     .pagination .page-item.active .page-link {
         background-color: #007bff;
         border-color: #007bff;
     }
-
     .nav-tabs .nav-link {
         border-radius: 0.5rem 0.5rem 0 0;
         margin-right: 5px;
     }
-
-        .nav-tabs .nav-link.active {
-            background-color: #007bff;
-            color: white;
-        }
+    .nav-tabs .nav-link.active {
+        background-color: #007bff;
+        color: white;
+    }
+    .btn-sm {
+        margin-right: 5px;
+    }
 </style>
 
 <script>
     document.querySelectorAll('form.action-form').forEach(form => {
         form.addEventListener('submit', (e) => {
-            e.preventDefault(); // Prevent default to control submission
+            e.preventDefault();
             const modal = new bootstrap.Modal(document.getElementById('loadingSpinner'));
             modal.show();
-            // Submit form after showing spinner
             setTimeout(() => {
                 form.submit();
-            }, 100); // Small delay to ensure spinner displays
+            }, 100);
+        });
+    });
+
+    document.querySelectorAll('.view-report-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const reportId = btn.dataset.reportId;
+            const itemTitle = btn.dataset.itemTitle;
+            const reporter = btn.dataset.reporter;
+            const reason = btn.dataset.reason;
+            const reportedAt = btn.dataset.reportedAt;
+
+            const message = `Chi tiết báo cáo:\n\n` +
+                           `ID Báo cáo: ${reportId}\n` +
+                           `Tên vật phẩm: ${itemTitle}\n` +
+                           `Người báo cáo: ${reporter}\n` +
+                           `Lý do: ${reason}\n` +
+                           `Thời gian: ${reportedAt}`;
+            alert(message);
         });
     });
 </script>

@@ -3,102 +3,105 @@
 @{
     ViewData["Title"] = "Chat";
 }
-<div class="container mt-4">
-    <div class="row">
+<div class="container-fluid mt-4 chat-container">
+    <div class="row g-3">
         <!-- User List -->
         <div class="col-md-4">
-            <h3 class="mb-3">Người Dùng</h3>
-            <div class="input-group mb-3">
-                <input type="text" class="form-control" placeholder="Tìm kiếm theo tên..." data-bind="textInput: searchQuery">
-                <button class="btn btn-primary" data-bind="click: searchUsers, enable: !isSearching()">Tìm</button>
-            </div>
-            <div data-bind="visible: errorMessage" class="alert alert-danger" role="alert" data-bind="text: errorMessage"></div>
-            <div class="list-group" data-bind="foreach: users" style="max-height: 500px; overflow-y: auto;">
-                <div class="list-group-item list-group-item-action d-flex align-items-center mb-2 rounded user-card"
-                     data-bind="click: $parent.selectUser, css: { 'active': $data.id === $parent.selectedUserId }">
-                    <img data-bind="attr: { src: $data.avatarUrl || '/images/default-avatar.png' }"
-                         class="rounded-circle me-3" style="width: 50px; height: 50px;" alt="Avatar">
-                    <div class="flex-grow-1">
-                        <strong data-bind="text: $data.displayName || $data.userName || 'Unknown'"></strong>
-                        <!-- ko if: $parent.onlineUsers().includes($data.id) -->
-                        <span class="online-indicator ms-2"></span>
-                        <!-- /ko -->
-                        <br>
-                        <small class="text-muted" data-bind="text: $data.userName || 'No Username'"></small>
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="mb-4 text-gradient">Người Dùng</h3>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control rounded-start" placeholder="Tìm kiếm theo tên..." data-bind="textInput: searchQuery">
+                        <button class="btn btn-primary rounded-end" data-bind="click: searchUsers, enable: !isSearching()">Tìm</button>
+                    </div>
+                    <div data-bind="visible: errorMessage" class="alert alert-danger" role="alert" data-bind="text: errorMessage"></div>
+                    <div class="user-list" data-bind="foreach: users" style="max-height: 600px; overflow-y: auto;">
+                        <div class="list-group-item list-group-item-action d-flex align-items-center mb-2 rounded user-card"
+                             data-bind="click: $parent.selectUser, css: { 'active': $data.id === $parent.selectedUserId }">
+                            <img data-bind="attr: { src: $data.avatarUrl || '/images/default-avatar.png' }"
+                                 class="rounded-circle me-3" style="width: 48px; height: 48px; object-fit: cover;" alt="Avatar">
+                            <div class="flex-grow-1">
+                                <strong data-bind="text: $data.displayName || $data.userName || 'Unknown'"></strong>
+                                <!-- ko if: $parent.onlineUsers().includes($data.id) -->
+                                <span class="online-indicator ms-2"></span>
+                                <!-- /ko -->
+                                <div><small class="text-muted" data-bind="text: $data.userName || 'No Username'"></small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         <!-- Chat Area -->
         <div class="col-md-8">
-            <h3 class="mb-3">Chat với <span data-bind="text: selectedUserName"></span></h3>
-            <div class="card shadow-sm">
-                <div class="card-body chat-body" style="height: 500px; overflow-y: auto;">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h3 class="mb-0 text-gradient">Chat với <span data-bind="text: selectedUserName"></span></h3>
+                </div>
+                <div class="card-body chat-body p-4" style="height: 600px; overflow-y: auto; background: linear-gradient(180deg, #f8f9fa, #ffffff);">
                     <div data-bind="foreach: messages">
                         <div class="message mb-3 fade-in"
                              data-bind="css: { 'ms-auto': senderId === '@Model.CurrentUserId', 'me-3': senderId !== '@Model.CurrentUserId' }">
-                            <div class="d-flex"
+                            <div class="d-flex align-items-start"
                                  data-bind="css: { 'flex-row-reverse': senderId === '@Model.CurrentUserId' }">
                                 <img data-bind="attr: { src: senderAvatar || '/images/default-avatar.png' }"
-                                     class="rounded-circle mt-2" style="width: 35px; height: 35px;">
-                                <div class="ms-2 me-2">
-                                    <div class="message-bubble rounded"
+                                     class="rounded-circle mt-2" style="width: 32px; height: 32px; object-fit: cover;">
+                                <div class="message-content ms-2 me-2">
+                                    <div class="message-bubble rounded-3 p-3"
                                          data-bind="css: { 'bg-primary text-white': senderId === '@Model.CurrentUserId', 'bg-light border': senderId !== '@Model.CurrentUserId' }">
                                         <!-- ko if: contentType === 'text' -->
-                                        <div class="p-2">
-                                            <span data-bind="text: content"></span>
-                                        </div>
+                                        <div><span data-bind="text: content"></span></div>
                                         <!-- /ko -->
                                         <!-- ko if: contentType === 'image' -->
-                                        <div class="p-1">
-                                            <img data-bind="attr: { src: content }" style="max-width: 250px; width: 100%; border-radius: 4px;" alt="Image">
+                                        <div>
+                                            <img data-bind="attr: { src: content }" style="max-width: 300px; width: 100%; border-radius: 8px;" alt="Image">
                                         </div>
                                         <!-- /ko -->
                                         <!-- ko if: contentType === 'video' -->
-                                        <div class="p-1">
-                                            <video controls style="max-width: 250px; width: 100%; border-radius: 4px;">
+                                        <div>
+                                            <video controls style="max-width: 300px; width: 100%; border-radius: 8px;">
                                                 <source data-bind="attr: { src: content }" type="video/mp4">
                                                 Your browser does not support the video tag.
                                             </video>
                                         </div>
                                         <!-- /ko -->
                                     </div>
-                                    <small class="text-muted d-block"
+                                    <small class="text-muted d-block mt-1"
                                            data-bind="text: new Date(createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></small>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card-footer">
+                <div class="card-footer bg-white">
                     <div data-bind="visible: selectedUserId">
-                        <div class="input-group mb-2">
-                            <input type="text" class="form-control" placeholder="Nhập tin nhắn..."
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control rounded-start" placeholder="Nhập tin nhắn..."
                                    data-bind="textInput: newMessage, enable: selectedUserId, event: { keyup: handleEnter }">
-                            <button class="btn btn-primary"
+                            <button class="btn btn-primary rounded-end"
                                     data-bind="click: sendMessage, enable: selectedUserId() && newMessage().length > 0">
                                 Gửi
                             </button>
                         </div>
-                        <div class="input-group mb-2">
-                            <input type="file" class="form-control" id="fileUpload"
+                        <div class="input-group mb-3">
+                            <input type="file" class="form-control rounded-start" id="fileUpload"
                                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg"
                                    data-bind="enable: selectedUserId, event: { change: fileSelected }">
-                            <button class="btn btn-primary"
+                            <button class="btn btn-primary rounded-end"
                                     data-bind="click: uploadFile, enable: selectedUserId() && hasFile()">
                                 Tải Lên
                             </button>
                         </div>
                         <div data-bind="visible: hasFile">
-                            <div id="file-preview" class="mb-2"></div>
-                            <div class="progress">
-                                <div id="upload-progress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div id="file-preview" class="mb-3"></div>
+                            <div class="progress" style="height: 8px;">
+                                <div id="upload-progress" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </div>
                         <small class="text-muted">Chọn hình ảnh hoặc video để tải lên (tối đa 10MB).</small>
                     </div>
                     <div data-bind="visible: !selectedUserId()">
-                        <p class="text-muted">Vui lòng chọn một người dùng để bắt đầu chat.</p>
+                        <p class="text-muted text-center mb-0">Vui lòng chọn một người dùng để bắt đầu chat.</p>
                     </div>
                 </div>
             </div>
@@ -107,62 +110,132 @@
 </div>
 
 <style>
+    .chat-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+
+    .card {
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.3s ease;
+    }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+    .text-gradient {
+        background: linear-gradient(45deg, #007bff, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
     .user-card {
-        transition: background-color 0.2s, transform 0.2s;
-        cursor: pointer;
+        transition: all 0.3s ease;
         border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-radius: 10px;
+        padding: 12px;
     }
 
         .user-card:hover {
-            background-color: #f1f3f5;
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
         }
 
         .user-card.active {
-            background-color: #e9ecef;
+            background: linear-gradient(90deg, #e3f2fd, #ffffff);
             border-left: 4px solid #007bff;
         }
 
     .online-indicator {
         display: inline-block;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        background-color: limegreen;
-    }
-
-    .message-bubble {
-        max-width: 70%;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        overflow: hidden;
+        background: limegreen;
+        box-shadow: 0 0 8px rgba(0,255,0,0.5);
     }
 
     .chat-body {
-        background-color: #f8f9fa;
+        scrollbar-width: thin;
+        scrollbar-color: #adb5bd #f8f9fa;
+    }
+
+        .chat-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-body::-webkit-scrollbar-track {
+            background: #f8f9fa;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb {
+            background: #adb5bd;
+            border-radius: 4px;
+        }
+
+    .message-bubble {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: transform 0.2s ease;
+    }
+
+        .message-bubble:hover {
+            transform: scale(1.02);
+        }
+
+    .message-content {
+        max-width: 80%;
     }
 
     .fade-in {
-        animation: fadeIn 0.3s ease-in;
+        animation: fadeIn 0.4s ease-in;
     }
 
     @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
+        from
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
     }
 
     #file-preview img, #file-preview video {
-        max-width: 150px;
-        max-height: 100px;
-        border-radius: 4px;
+        max-width: 180px;
+        max-height: 120px;
+        border-radius: 8px;
+        object-fit: cover;
     }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #007bff, #00d4ff);
+        border: none;
+        transition: background 0.3s ease;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #0056b3, #0096cc);
+        }
+
+    .form-control {
+        border: 1px solid #ced4da;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0,123,255,0.2);
+        }
 </style>
 
 @section Scripts {

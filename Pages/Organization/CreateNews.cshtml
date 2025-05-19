@@ -65,7 +65,9 @@
             </div>
 
             <button type="submit" class="btn btn-primary">Tạo Tin Tức</button>
+
             <a asp-page="/Organization/Details" asp-route-slug="@Model.Slug" class="btn btn-secondary">Quay Lại</a>
+            @Html.RenderCaptchaV2()
         </form>
     </div>
 </div>

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using LoginSystem.Data;
 using LoginSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using LoginSystem.Hubs;
+using System.Collections.Generic;
 
 namespace LoginSystem.Pages.Organization
 {
@@ -36,9 +38,19 @@ namespace LoginSystem.Pages.Organization
         public IList<MemberViewModel> Members { get; set; } = new List<MemberViewModel>();
         public IList<JoinRequestViewModel> JoinRequests { get; set; } = new List<JoinRequestViewModel>();
         public IList<NewsViewModel> News { get; set; } = new List<NewsViewModel>();
+        public IList<ExchangeItemViewModel> ExchangeItems { get; set; } = new List<ExchangeItemViewModel>();
+        public List<SelectListItem> Categories { get; set; } = new List<SelectListItem>();
         public int TotalMembers { get; set; }
         public int TotalComments { get; set; }
         public double AverageRating { get; set; }
+        [BindProperty(SupportsGet = true)]
+        public string? ItemTitleFilter { get; set; }
+        [BindProperty(SupportsGet = true)]
+        public string? ItemCategoryFilter { get; set; }
+        [BindProperty(SupportsGet = true)]
+        public string? ItemCreatorFilter { get; set; }
+        [BindProperty(SupportsGet = true)]
+        public string? ItemStatusFilter { get; set; }
 
         public class MemberViewModel
         {
@@ -63,6 +75,20 @@ namespace LoginSystem.Pages.Organization
             public string Id { get; set; } = string.Empty;
             public string Title { get; set; } = string.Empty;
             public string Content { get; set; } = string.Empty;
+            public DateTime CreatedAt { get; set; }
+        }
+
+        public class ExchangeItemViewModel
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string CreatorId { get; set; } = string.Empty;
+            public string CreatorName { get; set; } = string.Empty;
+            public string CreatorAvatar { get; set; } = string.Empty;
+            public string CategoryId { get; set; } = string.Empty;
+            public string CategoryName { get; set; } = string.Empty;
+            public int QuantityAvailable { get; set; }
+            public bool IsPrivate { get; set; }
             public DateTime CreatedAt { get; set; }
         }
 
@@ -99,6 +125,7 @@ namespace LoginSystem.Pages.Organization
                 return RedirectToPage("/Organization/Details", new { slug });
             }
 
+            // Load members
             Members = await _dbContext.OrganizationMembers
                 .Where(m => m.OrganizationId == Organization.Id)
                 .Join(_dbContext.Users,
@@ -115,6 +142,7 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking()
                 .ToListAsync();
 
+            // Load join requests
             JoinRequests = await _dbContext.OrganizationJoinRequests
                 .Where(r => r.OrganizationId == Organization.Id && r.Status == "Pending")
                 .Join(_dbContext.Users,
@@ -131,6 +159,7 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking()
                 .ToListAsync();
 
+            // Load news
             News = await _dbContext.OrganizationNews
                 .Where(n => n.OrganizationId == Organization.Id)
                 .Select(n => new NewsViewModel
@@ -144,6 +173,60 @@ namespace LoginSystem.Pages.Organization
                 .AsNoTracking()
                 .ToListAsync();
 
+            // Load exchange items with filters
+            var itemsQuery = _dbContext.ExchangeItems
+                .Where(i => i.OrganizationId == Organization.Id)
+                .Join(_dbContext.Users,
+                    i => i.OwnerId,
+                    u => u.Id,
+                    (i, u) => new { Item = i, User = u })
+                .Join(_dbContext.ItemCategories,
+                    x => x.Item.CategoryId,
+                    c => c.Id,
+                    (x, c) => new ExchangeItemViewModel
+                    {
+                        Id = x.Item.Id,
+                        Title = x.Item.Title,
+                        CreatorId = x.Item.OwnerId,
+                        CreatorName = x.User.DisplayName ?? x.User.UserName,
+                        CreatorAvatar = x.User.AvatarUrl ?? string.Empty,
+                        CategoryId = x.Item.CategoryId,
+                        CategoryName = c.Name,
+                        QuantityAvailable = x.Item.QuantityAvailable,
+                        IsPrivate = x.Item.IsPrivate,
+                        CreatedAt = x.Item.CreatedAt
+                    });
+
+            if (!string.IsNullOrEmpty(ItemTitleFilter))
+            {
+                itemsQuery = itemsQuery.Where(i => i.Title.Contains(ItemTitleFilter));
+            }
+            if (!string.IsNullOrEmpty(ItemCategoryFilter))
+            {
+                itemsQuery = itemsQuery.Where(i => i.CategoryId == ItemCategoryFilter);
+            }
+            if (!string.IsNullOrEmpty(ItemCreatorFilter))
+            {
+                itemsQuery = itemsQuery.Where(i => i.CreatorName.Contains(ItemCreatorFilter));
+            }
+            if (!string.IsNullOrEmpty(ItemStatusFilter) && bool.TryParse(ItemStatusFilter, out bool isPrivate))
+            {
+                itemsQuery = itemsQuery.Where(i => i.IsPrivate == isPrivate);
+            }
+
+            ExchangeItems = await itemsQuery
+                .OrderByDescending(i => i.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // Load categories for filter
+            Categories = await _dbContext.ItemCategories
+                .Select(c => new SelectListItem { Value = c.Id, Text = c.Name })
+                .OrderBy(c => c.Text)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // Load statistics
             TotalMembers = Members.Count;
             TotalComments = await _dbContext.OrganizationNewsComments
                 .AsNoTracking()
@@ -580,6 +663,119 @@ namespace LoginSystem.Pages.Organization
                 notification.Type);
 
             TempData["SuccessMessage"] = $"Đã từ chối yêu cầu tham gia của {user.DisplayName ?? user.UserName}!";
+            return RedirectToPage(new { slug });
+        }
+
+        public async Task<IActionResult> OnPostDeleteItemAsync(string slug, string itemId)
+        {
+            if (string.IsNullOrEmpty(slug) || string.IsNullOrEmpty(itemId))
+            {
+                TempData["ErrorMessage"] = "Dữ liệu không hợp lệ.";
+                return RedirectToPage(new { slug });
+            }
+
+            var organization = await _dbContext.Organizations.FirstOrDefaultAsync(o => o.Slug == slug);
+            if (organization == null)
+            {
+                TempData["ErrorMessage"] = "Tổ chức không tồn tại.";
+                return NotFound();
+            }
+
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
+            {
+                TempData["ErrorMessage"] = "Không thể xác định người dùng.";
+                return RedirectToPage(new { slug });
+            }
+
+            var isAdmin = await _dbContext.OrganizationMembers
+                .AnyAsync(m => m.OrganizationId == organization.Id && m.UserId == userId && m.Role == "Admin");
+            if (!isAdmin)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền xóa mặt hàng.";
+                return RedirectToPage(new { slug });
+            }
+
+            var item = await _dbContext.ExchangeItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OrganizationId == organization.Id);
+            if (item == null)
+            {
+                TempData["ErrorMessage"] = "Mặt hàng không tồn tại hoặc không thuộc tổ chức này.";
+                return RedirectToPage(new { slug });
+            }
+
+            try
+            {
+                // Remove associated data
+                var mediaItems = await _dbContext.ItemMedia
+                    .Where(m => m.ItemId == itemId)
+                    .ToListAsync();
+                if (mediaItems.Any())
+                {
+                    _dbContext.ItemMedia.RemoveRange(mediaItems);
+                }
+
+                var tags = await _dbContext.ItemTags
+                    .Where(t => t.ItemId == itemId)
+                    .ToListAsync();
+                if (tags.Any())
+                {
+                    _dbContext.ItemTags.RemoveRange(tags);
+                }
+
+                var ratings = await _dbContext.ItemRatings
+                    .Where(r => r.ItemId == itemId)
+                    .ToListAsync();
+                if (ratings.Any())
+                {
+                    _dbContext.ItemRatings.RemoveRange(ratings);
+                }
+
+                var comments = await _dbContext.ItemComments
+                    .Where(c => c.ItemId == itemId)
+                    .ToListAsync();
+                if (comments.Any())
+                {
+                    _dbContext.ItemComments.RemoveRange(comments);
+                }
+
+                var reports = await _dbContext.ItemReports
+                    .Where(r => r.ItemId == itemId)
+                    .ToListAsync();
+                if (reports.Any())
+                {
+                    _dbContext.ItemReports.RemoveRange(reports);
+                }
+
+                _dbContext.ExchangeItems.Remove(item);
+                await _dbContext.SaveChangesAsync();
+
+                var user = await _userManager.FindByIdAsync(item.OwnerId);
+                var notification = new Notification
+                {
+                    UserId = item.OwnerId,
+                    Content = $"Mặt hàng '{item.Title}' của bạn đã bị xóa bởi quản trị viên tổ chức {organization.Name}.",
+                    OrganizationId = organization.Id,
+                    Type = "ExchangeItemDeletion",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _dbContext.Notifications.Add(notification);
+                await _dbContext.SaveChangesAsync();
+
+                await _hubContext.Clients.User(item.OwnerId).SendAsync("ReceiveNotification",
+                    notification.Id,
+                    notification.Content,
+                    notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    $"/Exchange/Item/{itemId}",
+                    notification.Type);
+
+                TempData["SuccessMessage"] = $"Đã xóa mặt hàng '{item.Title}' thành công!";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Lỗi khi xóa mặt hàng: {ex.Message}";
+            }
+
             return RedirectToPage(new { slug });
         }
     }

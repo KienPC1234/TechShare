@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using LoginSystem.Data;
 using LoginSystem.Models;
 using System;
@@ -13,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using LoginSystem.Security;
 
 namespace LoginSystem.Pages.Exchange
 {
@@ -22,13 +24,20 @@ namespace LoginSystem.Pages.Exchange
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMemoryCache _cache;
+        private readonly ILogger<CreateItemModel> _logger;
+        private readonly IRecaptchaService _recaptcha;
 
-        public CreateItemModel(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache)
+        public CreateItemModel(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache, ILogger<CreateItemModel> logger, IRecaptchaService recaptcha)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _recaptcha = recaptcha ?? throw new ArgumentNullException(nameof(recaptcha));
         }
+
+        [BindProperty(Name = "g-recaptcha-response")]
+        public string RecaptchaToken { get; set; }
 
         [BindProperty]
         public ExchangeItem Item { get; set; } = new ExchangeItem();
@@ -53,77 +62,82 @@ namespace LoginSystem.Pages.Exchange
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
+                _logger.LogWarning("User not authenticated.");
                 ErrorMessage = "Người dùng không được xác thực.";
                 return Page();
             }
 
-            Item.OwnerId = user.Id; // Set OwnerId for hidden input
-            Item.OrganizationId = string.IsNullOrWhiteSpace(user.OrganizationId) ? null : user.OrganizationId; // Normalize to null if empty
-            HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
+            Item.OwnerId = user.Id;
+            HasOrganization = await ValidateUserOrganizationAsync(user);
+            Item.OrganizationId = HasOrganization ? user.OrganizationId : null;
+            Item.IsPrivate = false; // Default to false, only allow true if HasOrganization
+
+            _logger.LogInformation("OnGet: User {UserId}, OrganizationId: {OrgId}, HasOrganization: {HasOrg}", user.Id, Item.OrganizationId, HasOrganization);
+
             await LoadSelectListsAsync();
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (!await _recaptcha.VerifyAsync(RecaptchaToken))
+            {
+                ErrorMessage = "Xác thực reCAPTCHA thất bại";
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
+                _logger.LogWarning("User not authenticated on POST.");
                 ErrorMessage = "Người dùng không được xác thực.";
                 HasOrganization = false;
                 await LoadSelectListsAsync();
                 return Page();
             }
 
-            // Validate OwnerId to prevent tampering
             if (Item.OwnerId != user.Id)
             {
+                _logger.LogWarning("Invalid OwnerId: {OwnerId} does not match user {UserId}", Item.OwnerId, user.Id);
                 ErrorMessage = "ID người sở hữu không hợp lệ.";
                 HasOrganization = false;
                 await LoadSelectListsAsync();
                 return Page();
             }
 
-            // Normalize OrganizationId and handle invalid cases
-            if (!string.IsNullOrWhiteSpace(Item.OrganizationId))
+            HasOrganization = await ValidateUserOrganizationAsync(user);
+            if (HasOrganization)
             {
-                var orgExists = await _context.Organizations.AnyAsync(o => o.Id == Item.OrganizationId);
-                if (!orgExists)
-                {
-                    Item.OrganizationId = null; // Set to null if organization doesn't exist
-                }
+                // Ensure OrganizationId is set to user's valid OrganizationId
+                Item.OrganizationId = user.OrganizationId;
             }
             else
             {
-                Item.OrganizationId = null; // Normalize empty or whitespace to null
+                // Clear OrganizationId and IsPrivate if no valid organization
+                Item.OrganizationId = null;
+                Item.IsPrivate = false;
             }
 
-            // Ensure IsPrivate is false if no organization
-            if (Item.IsPrivate && Item.OrganizationId == null)
-            {
-                Item.IsPrivate = false; // Force false if no organization
-            }
+            _logger.LogInformation("OnPost: User {UserId}, OrganizationId: {OrgId}, HasOrganization: {HasOrg}, IsPrivate: {IsPrivate}",
+                user.Id, Item.OrganizationId, HasOrganization, Item.IsPrivate);
 
             Item.Id = Guid.NewGuid().ToString();
             Item.CreatedAt = DateTime.UtcNow;
             Item.MediaItems = new List<ItemMedia>();
             Item.Tags = new List<ItemTag>();
 
-            // Validate model state
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.SelectMany(kvp => kvp.Value.Errors.Select(e => $"{kvp.Key}: {e.ErrorMessage}"));
                 ErrorMessage = "Dữ liệu không hợp lệ: " + string.Join("; ", errors);
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
 
-            // Validate required fields
             if (string.IsNullOrWhiteSpace(Item.Title) || Item.Title.Length > 200)
             {
                 ErrorMessage = "Tiêu đề không hợp lệ hoặc vượt quá 200 ký tự.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -131,7 +145,6 @@ namespace LoginSystem.Pages.Exchange
             if (string.IsNullOrWhiteSpace(Item.Description) || Item.Description.Length > 5000)
             {
                 ErrorMessage = "Mô tả không hợp lệ hoặc vượt quá 5000 ký tự.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -139,7 +152,6 @@ namespace LoginSystem.Pages.Exchange
             if (string.IsNullOrWhiteSpace(Item.Terms) || Item.Terms.Length > 1000)
             {
                 ErrorMessage = "Điều khoản không hợp lệ hoặc vượt quá 1000 ký tự.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -147,7 +159,6 @@ namespace LoginSystem.Pages.Exchange
             if (string.IsNullOrWhiteSpace(Item.PickupAddress) || Item.PickupAddress.Length > 500)
             {
                 ErrorMessage = "Địa chỉ lấy hàng không hợp lệ hoặc vượt quá 500 ký tự.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -155,7 +166,6 @@ namespace LoginSystem.Pages.Exchange
             if (Item.QuantityAvailable < 0)
             {
                 ErrorMessage = "Số lượng phải lớn hơn hoặc bằng 0.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -163,7 +173,6 @@ namespace LoginSystem.Pages.Exchange
             if (string.IsNullOrEmpty(Item.CategoryId))
             {
                 ErrorMessage = "Danh mục là bắt buộc.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -172,17 +181,14 @@ namespace LoginSystem.Pages.Exchange
             if (!categoryExists)
             {
                 ErrorMessage = "Danh mục không tồn tại.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
 
-            // Process media files
             var mediaResult = await ProcessMediaFilesAsync();
             if (!mediaResult.Success)
             {
                 ErrorMessage = mediaResult.ErrorMessage;
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -190,12 +196,10 @@ namespace LoginSystem.Pages.Exchange
             if (!mediaResult.HasMedia)
             {
                 ErrorMessage = "Vui lòng tải lên ít nhất một hình ảnh hoặc video.";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
 
-            // Process tags
             if (!string.IsNullOrWhiteSpace(Tags))
             {
                 var tagList = Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -207,7 +211,6 @@ namespace LoginSystem.Pages.Exchange
                 if (tagList.Any(t => t.Length > 50))
                 {
                     ErrorMessage = "Mỗi tag không được vượt quá 50 ký tự.";
-                    HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                     await LoadSelectListsAsync();
                     return Page();
                 }
@@ -231,22 +234,43 @@ namespace LoginSystem.Pages.Exchange
                 await _context.SaveChangesAsync();
                 _cache.Remove("ItemCategories");
 
+                _logger.LogInformation("Item created successfully: {ItemId}, OrganizationId: {OrgId}", Item.Id, Item.OrganizationId);
+
                 return RedirectToPage("/Exchange/Item", new { id = Item.Id });
             }
             catch (DbUpdateException ex)
             {
+                _logger.LogError(ex, "Database error saving item: {Message}", ex.InnerException?.Message ?? ex.Message);
                 ErrorMessage = $"Lỗi khi lưu mặt hàng: {ex.InnerException?.Message ?? ex.Message}";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Unexpected error: {Message}", ex.Message);
                 ErrorMessage = $"Lỗi không xác định: {ex.Message}";
-                HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
                 await LoadSelectListsAsync();
                 return Page();
             }
+        }
+
+        private async Task<bool> ValidateUserOrganizationAsync(ApplicationUser user)
+        {
+            if (string.IsNullOrWhiteSpace(user.OrganizationId))
+            {
+                _logger.LogDebug("User {UserId} has no OrganizationId.", user.Id);
+                return false;
+            }
+
+            if (!Guid.TryParse(user.OrganizationId, out _))
+            {
+                _logger.LogWarning("User {UserId} has invalid OrganizationId format: {OrgId}", user.Id, user.OrganizationId);
+                return false;
+            }
+
+            var orgExists = await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
+            _logger.LogDebug("Organization {OrgId} exists for user {UserId}: {Exists}", user.OrganizationId, user.Id, orgExists);
+            return orgExists;
         }
 
         private async Task<(bool Success, bool HasMedia, string? ErrorMessage)> ProcessMediaFilesAsync()
@@ -301,6 +325,7 @@ namespace LoginSystem.Pages.Exchange
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error processing media files: {Message}", ex.Message);
                 return (false, false, $"Lỗi khi xử lý tệp: {ex.Message}");
             }
         }
@@ -320,6 +345,7 @@ namespace LoginSystem.Pages.Exchange
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error saving file: {Message}", ex.Message);
                 throw new Exception($"Lỗi khi lưu tệp: {ex.Message}");
             }
         }

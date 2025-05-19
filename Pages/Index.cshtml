@@ -1,10 +1,545 @@
 ﻿@page
-@model IndexModel
+@model LoginSystem.Pages.IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "TechShare - Kết nối Giáo dục, Chia sẻ Công nghệ";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<!-- Devicons CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- AOS CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
+<!-- Home CSS -->
+<link rel="stylesheet" href="~/css/home.css">
+
+<!-- Typed.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+<!-- AOS JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+
+<main class="py-0">
+    <!-- Hero Section -->
+    <section class="hero position-relative overflow-hidden">
+        <div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="4000">
+            <div class="carousel-inner">
+                <div class="carousel-item active d-flex justify-content-center align-items-center">
+                    <div class="hero-overlay"></div>
+                    <img src="~/images/banner1.png" alt="Tái sử dụng thiết bị công nghệ" class="hero-img" data-aos="zoom-out">
+                    <div class="carousel-caption">
+                        <h1 class="display-2 fw-bold text-white shadow-text"><span class="typed-text"></span></h1>
+                        <p class="lead text-white shadow-text" data-aos="fade-up" data-aos-delay="200">Tái sử dụng công nghệ, kết nối giáo dục</p>
+                        <a href="/Register" class="btn btn-gradient btn-lg animate-sparkle" data-aos="zoom-in" data-aos-delay="400">Tham gia ngay</a>
+                    </div>
+                </div>
+                <div class="carousel-item d-flex justify-content-center align-items-center">
+                    <div class="hero-overlay"></div>
+                    <img src="~/images/banner2.png" alt="Học sinh tiếp cận thiết bị" class="hero-img" data-aos="zoom-out">
+                    <div class="carousel-caption">
+                        <h1 class="display-2 fw-bold text-white shadow-text">Học sinh tiếp cận công nghệ</h1>
+                        <p class="lead text-white shadow-text" data-aos="fade-up" data-aos-delay="200">Mang thiết bị đến lớp học nông thôn</p>
+                    </div>
+                </div>
+                <div class="carousel-item d-flex justify-content-center align-items-center">
+                    <div class="hero-overlay"></div>
+                    <img src="~/images/banner3.png" alt="Giao nhận thiết bị" class="hero-img" data-aos="zoom-out">
+                    <div class="carousel-caption">
+                        <h1 class="display-2 fw-bold text-white shadow-text">Giao nhận thiết bị</h1>
+                        <p class="lead text-white shadow-text" data-aos="fade-up" data-aos-delay="200">Kết nối các trường học hiệu quả</p>
+                    </div>
+                </div>
+                <div class="carousel-item d-flex justify-content-center align-items-center">
+                    <div class="hero-overlay"></div>
+                    <img src="~/images/banner4.png" alt="Quản lý thiết bị" class="hero-img" data-aos="zoom-out">
+                    <div class="carousel-caption">
+                        <h1 class="display-2 fw-bold text-white shadow-text">Quản lý thông minh</h1>
+                        <p class="lead text-white shadow-text" data-aos="fade-up" data-aos-delay="200">Nền tảng số minh bạch, dễ dùng</p>
+                    </div>
+                </div>
+                <div class="carousel-item d-flex justify-content-center align-items-center">
+                    <div class="hero-overlay"></div>
+                    <img src="~/images/banner5.png" alt="Cộng đồng TechShare" class="hero-img" data-aos="zoom-out">
+                    <div class="carousel-caption">
+                        <h1 class="display-2 fw-bold text-white shadow-text">Cộng đồng TechShare</h1>
+                        <p class="lead text-white shadow-text" data-aos="fade-up" data-aos-delay="200">Xây dựng giáo dục bền vững</p>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about py-5 bg-gradient-section">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Về TechShare</h2>
+            <div class="row justify-content-center">
+                <div class="col-lg-12" data-aos="fade-up">
+                    <div class="row g-4">
+                        <!-- Mission & Vision -->
+                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                            <div class="about-card p-4 rounded h-100">
+                                <i class="fas fa-lightbulb fa-3x text-primary mb-3 animate-pulse" data-aos="zoom-in" data-aos-delay="150"></i>
+                                <h3 class="fw-bold text-gradient mb-3">Sứ mệnh</h3>
+                                <p>TechShare tiên phong kết nối trường học tại Thạch Thất, chia sẻ thiết bị công nghệ vì giáo dục bền vững.</p>
+                                <h5>Tầm nhìn & Giá trị</h5>
+                                <p>Xây dựng hệ sinh thái giáo dục thông minh, nơi mọi học sinh đều tiếp cận công nghệ hiện đại. Minh bạch, hiệu quả, thân thiện với môi trường.</p>
+                                <a href="#" class="btn btn-pulse mt-3" data-aos="zoom-in" data-aos-delay="200">Khám phá thêm</a>
+                            </div>
+                        </div>
+                        <!-- Goals -->
+                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                            <div class="about-card p-4 rounded h-100">
+                                <h3 class="fw-bold text-gradient mb-3">Mục tiêu</h3>
+                                <div class="goal-item mb-3">
+                                    <i class="fas fa-laptop fa-3x text-primary mb-2 animate-pulse"></i>
+                                    <h5>Hỗ trợ giáo dục</h5>
+                                    <p>Trang bị công nghệ cho trường thiếu thốn.</p>
+                                </div>
+                                <div class="goal-item mb-3">
+                                    <i class="fas fa-recycle fa-3x text-primary mb-2 animate-pulse"></i>
+                                    <h5>Tái sử dụng</h5>
+                                    <p>Kết nối thiết bị dư thừa với nơi cần.</p>
+                                </div>
+                                <div class="goal-item">
+                                    <i class="fas fa-leaf fa-3x text-primary mb-2 animate-pulse"></i>
+                                    <h5>Bảo vệ môi trường</h5>
+                                    <p>Giảm rác thải điện tử, xây tương lai xanh.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Stats -->
+                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                            <div class="about-card p-4 rounded h-100">
+                                <h3 class="fw-bold text-gradient mb-3">Tác động</h3>
+                                <div class="row g-2">
+                                    <div class="col-6 stat-block text-center" data-aos="zoom-in" data-aos-delay="400">
+                                        <i class="fas fa-school fa-2x text-primary mb-2 animate-pulse"></i>
+                                        <h4 class="fw-bold text-gradient animate-pulse">20+</h4>
+                                        <p>Trường học tham gia</p>
+                                    </div>
+                                    <div class="col-6 stat-block text-center" data-aos="zoom-in" data-aos-delay="450">
+                                        <i class="fas fa-users fa-2x text-primary mb-2 animate-pulse"></i>
+                                        <h4 class="fw-bold text-gradient animate-pulse">1000+</h4>
+                                        <p>Học sinh hỗ trợ</p>
+                                    </div>
+                                    <div class="col-6 stat-block text-center" data-aos="zoom-in" data-aos-delay="500">
+                                        <i class="fas fa-laptop fa-2x text-primary mb-2 animate-pulse"></i>
+                                        <h4 class="fw-bold text-gradient animate-pulse">500+</h4>
+                                        <p>Thiết bị tái sử dụng</p>
+                                    </div>
+                                    <div class="col-6 stat-block text-center" data-aos="zoom-in" data-aos-delay="550">
+                                        <i class="fas fa-leaf fa-2x text-primary mb-2 animate-pulse"></i>
+                                        <h4 class="fw-bold text-gradient animate-pulse">10+</h4>
+                                        <p>Tấn rác thải giảm</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Target Users -->
+    <section class="users py-5 bg-white">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Đối tượng sử dụng</h2>
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="flip-up" data-aos-delay="100">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-school fa-2x text-primary mb-3 animate-pulse"></i>
+                            <h5 class="card-title">Trường có thiết bị dư thừa</h5>
+                            <p class="card-text text-muted">Đăng tải thiết bị để chia sẻ, tối ưu tài nguyên giáo dục.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="flip-up" data-aos-delay="200">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-laptop fa-2x text-primary mb-3 animate-pulse"></i>
+                            <h5 class="card-title">Trường thiếu thiết bị</h5>
+                            <p class="card-text text-muted">Gửi yêu cầu mượn thiết bị để hỗ trợ giảng dạy.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="flip-up" data-aos-delay="300">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-handshake fa-2x text-primary mb-3 animate-pulse"></i>
+                            <h5 class="card-title">Nhà tài trợ</h5>
+                            <p class="card-text text-muted">Hỗ trợ tài chính, logistics cho tái sử dụng thiết bị.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center my-4" data-aos="fade-up" data-aos-delay="400">
+                <img src="~/images/banner2.png" alt="Học sinh tiếp cận thiết bị" class="img-fluid rounded shadow-lg" width="960" height="640">
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Features -->
+    <section class="features py-5 bg-gradient-section">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Tính năng nổi bật</h2>
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="100">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-truck fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Logistics mượn đồ</h5>
+                        <p class="text-muted">Quản lý giao nhận minh bạch, theo dõi thời gian thực.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-exchange-alt fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Hệ thống mượn đồ</h5>
+                        <p class="text-muted">Cho phép mượn ngắn hạn, xác nhận tình trạng thiết bị.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="300">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-users-cog fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Phân quyền tổ chức</h5>
+                        <p class="text-muted">Quản lý vai trò và quyền truy cập linh hoạt.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="400">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-bell fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Thông báo thời gian thực</h5>
+                        <p class="text-muted">Cập nhật trạng thái qua email, SMS, SignalR.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="500">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-chart-bar fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Báo cáo và phân tích</h5>
+                        <p class="text-muted">Tổng hợp số liệu giao dịch và nhu cầu thiết bị.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="zoom-in" data-aos-delay="600">
+                    <div class="feature-card text-center p-4 shadow-neumorphic">
+                        <i class="fas fa-shield-alt fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h5>Bảo mật cao</h5>
+                        <p class="text-muted">Xác thực đa yếu tố, mã hóa dữ liệu an toàn.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center my-4" data-aos="fade-up" data-aos-delay="700">
+                <img src="~/images/banner4.png" alt="Quản lý thiết bị" class="img-fluid rounded shadow-lg" width="960" height="640">
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflow -->
+    <section class="workflow py-5 bg-white">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Quy trình hoạt động</h2>
+            <div class="row">
+                <div class="col-12" data-aos="fade-up" data-aos-delay="200">
+                    <div class="steps d-flex justify-content-between text-center flex-wrap">
+                        <div class="step" data-aos="fade-up" data-aos-delay="300">
+                            <i class="fas fa-user-plus fa-2x text-primary mb-3 animate-pulse"></i>
+                            <p>Đăng ký & Xác thực</p>
+                        </div>
+                        <div class="step" data-aos="fade-up" data-aos-delay="400">
+                            <i class="fas fa-upload fa-2x text-primary mb-3 animate-pulse"></i>
+                            <p>Đăng tải thiết bị</p>
+                        </div>
+                        <div class="step" data-aos="fade-up" data-aos-delay="500">
+                            <i class="fas fa-paper-plane fa-2x text-primary mb-3 animate-pulse"></i>
+                            <p>Gửi yêu cầu mượn</p>
+                        </div>
+                        <div class="step" data-aos="fade-up" data-aos-delay="600">
+                            <i class="fas fa-truck fa-2x text-primary mb-3 animate-pulse"></i>
+                            <p>Giao nhận thiết bị</p>
+                        </div>
+                        <div class="step" data-aos="fade-up" data-aos-delay="700">
+                            <i class="fas fa-star fa-2x text-primary mb-3 animate-pulse"></i>
+                            <p>Đánh giá & Phản hồi</p>
+                        </div>
+                    </div>
+                    <div class="text-center my-4" data-aos="fade-up" data-aos-delay="800">
+                        <img src="~/images/banner3.png" alt="Giao nhận thiết bị" class="img-fluid rounded shadow-lg" width="960" height="640">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Impact Statistics -->
+    <section class="stats py-5 bg-gradient-section">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Tác động của TechShare</h2>
+            <div class="row g-4 text-center">
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-card p-4 shadow-neumorphic">
+                        <i class="fas fa-laptop fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h3 class="fw-bold count-up" data-target="500">0</h3>
+                        <p class="text-muted">Thiết bị tái sử dụng</p>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-card p-4 shadow-neumorphic">
+                        <i class="fas fa-school fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h3 class="fw-bold count-up" data-target="20">0</h3>
+                        <p class="text-muted">Trường học tham gia</p>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-card p-4 shadow-neumorphic">
+                        <i class="fas fa-leaf fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h3 class="fw-bold count-up" data-target="10">0</h3>
+                        <p class="text-muted">Tấn rác thải giảm</p>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="400">
+                    <div class="stat-card p-4 shadow-neumorphic">
+                        <i class="fas fa-users fa-3x text-primary mb-3 animate-pulse"></i>
+                        <h3 class="fw-bold count-up" data-target="1000">0</h3>
+                        <p class="text-muted">Học sinh hỗ trợ</p>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center my-4" data-aos="fade-up" data-aos-delay="500">
+                <img src="~/images/banner1.png" alt="Tái sử dụng thiết bị" class="img-fluid rounded shadow-lg" width="960" height="640">
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits -->
+    <section class="benefits py-5 bg-white">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Lợi ích dự án</h2>
+            <div class="row g-4">
+                <div class="col-md-3" data-aos="flip-left" data-aos-delay="100">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-dollar-sign fa-2x text-success mb-3 animate-pulse"></i>
+                            <h5>Kinh tế</h5>
+                            <p class="text-muted">Tiết kiệm chi phí mua sắm thiết bị mới.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="flip-left" data-aos-delay="200">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-users fa-2x text-success mb-3 animate-pulse"></i>
+                            <h5>Xã hội</h5>
+                            <p class="text-muted">Tăng cơ hội tiếp cận công nghệ.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="flip-left" data-aos-delay="300">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-leaf fa-2x text-success mb-3 animate-pulse"></i>
+                            <h5>Môi trường</h5>
+                            <p class="text-muted">Giảm rác thải điện tử, bảo vệ môi trường.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3" data-aos="flip-left" data-aos-delay="400">
+                    <div class="card h-100 border-0 shadow-neumorphic">
+                        <div class="card-body">
+                            <i class="fas fa-handshake fa-2x text-success mb-3 animate-pulse"></i>
+                            <h5>Cộng đồng</h5>
+                            <p class="text-muted">Xây dựng mối quan hệ bền vững.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials pt-5 pb-4 bg-gradient-section">
+        <div class="container-fluid position-relative mx-auto" style="max-width: 1100px;">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-3 fw-bold text-gradient shadow-text" data-aos="fade-up">Câu chuyện thành công</h2>
+            <div id="testimonialCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="6000">
+                <div class="carousel-indicators">
+                    <button type="button" data-bs-target="#testimonialCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                    <button type="button" data-bs-target="#testimonialCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                </div>
+                <div class="carousel-inner">
+                    <!-- Slide 1 -->
+                    <div class="carousel-item-2 active">
+                        <div class="row g-3 justify-content-center">
+                            <!-- Testimonial 1 -->
+                            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                                <div class="card h-100 border-0 shadow-neumorphic testimonial-card">
+                                    <div class="card-body d-flex align-items-center justify-content-start">
+                                        <div class="avatar-wrapper me-3">
+                                            <img src="images/avatar1.png" alt="Nguyễn Văn A" class="avatar">
+                                        </div>
+                                        <div>
+                                            <p class="quote-bubble">"TechShare giúp tiết kiệm hàng trăm triệu đồng với 30 laptop tái sử dụng."</p>
+                                            <h6 class="fw-bold">Nguyễn Văn A</h6>
+                                            <p class="text-muted small">Hiệu trưởng, THPT Thạch Thất</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Testimonial 2 -->
+                            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                                <div class="card h-100 border-0 shadow-neumorphic testimonial-card">
+                                    <div class="card-body d-flex align-items-center justify-content-start">
+                                        <div class="avatar-wrapper me-3">
+                                            <img src="images/avatar2.png" alt="Trần Thị B" class="avatar">
+                                        </div>
+                                        <div>
+                                            <p class="quote-bubble">"Học sinh tham gia cuộc thi robot nhờ thiết bị mượn từ TechShare."</p>
+                                            <h6 class="fw-bold">Trần Thị B</h6>
+                                            <p class="text-muted small">Giáo viên, THCS Bình Phú</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Testimonial 3 -->
+                            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                                <div class="card h-100 border-0 shadow-neumorphic testimonial-card">
+                                    <div class="card-body d-flex align-items-center justify-content-start">
+                                        <div class="avatar-wrapper me-3">
+                                            <img src="images/avatar3.png" alt="Lê Văn C" class="avatar">
+                                        </div>
+                                        <div>
+                                            <p class="quote-bubble">"TechShare kết nối chúng tôi với học sinh vùng sâu."</p>
+                                            <h6 class="fw-bold">Lê Văn C</h6>
+                                            <p class="text-muted small">Nhà tài trợ, Công ty ABC</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section class="tech-stack py-5 bg-white">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="text-center mb-5 fw-bold text-gradient shadow-text" data-aos="fade-up">Công nghệ sử dụng</h2>
+            <div class="row justify-content-center text-center g-4">
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="100">
+                    <i class="devicon-csharp-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">C#</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="100">
+                    <i class="devicon-dotnetcore-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">.NET Core</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="200">
+                    <i class="devicon-blazor-original colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">Blazor</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="300">
+                    <i class="devicon-microsoftsqlserver-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">SQL Server</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="400">
+                    <i class="devicon-redis-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">Redis</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="500">
+                    <i class="devicon-docker-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">Docker</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="600">
+                    <i class="devicon-bootstrap-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">Bootstrap</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="700">
+                    <i class="devicon-jquery-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">jQuery</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="800">
+                    <i class="devicon-githubactions-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">GitHub Actions</p>
+                </div>
+                <div class="col-auto tech-item" data-aos="slide-right" data-aos-delay="900">
+                    <i class="devicon-azure-plain colored fa-4x animate-pulse"></i>
+                    <p class="mt-2">Azure</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta py-5 text-white text-center bg-gradient-section">
+        <div class="container-fluid position-relative">
+            <div class="decorative-shape left-shape"></div>
+            <div class="decorative-shape right-shape"></div>
+            <h2 class="fw-bold text-gradient shadow-text" data-aos="fade-up">Tham gia TechShare ngay hôm nay!</h2>
+            <p class="lead shadow-text" data-aos="fade-up" data-aos-delay="200">Cùng xây dựng cộng đồng giáo dục bền vững tại Thạch Thất!</p>
+            <div class="text-center my-4" data-aos="fade-up" data-aos-delay="300">
+                <img src="~/images/banner5.png" alt="Cộng đồng TechShare" class="img-fluid rounded shadow-lg" width="960" height="640">
+            </div>
+            <a href="/Register" class="btn btn-light btn-lg shadow animate-sparkle" data-aos="zoom-in" data-aos-delay="400">Đăng ký ngay</a>
+        </div>
+    </section>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize AOS
+        AOS.init({
+            duration: 1000,
+            easing: 'ease-in-sine',
+            once: true
+        });
+
+        // Typed.js for Hero
+        new Typed('.typed-text', {
+            strings: ['TechShare', 'Kết nối Giáo dục', 'Chia sẻ Công nghệ', 'Tác động Bền vững'],
+            typeSpeed: 50,
+            backSpeed: 30,
+            backDelay: 1000,
+            loop: true
+        });
+
+        // Stats animation for About section
+        const statsBlocks = document.querySelectorAll('.stat-block');
+        const aboutSection = document.querySelector('.about');
+        if (aboutSection && statsBlocks.length) {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    statsBlocks.forEach((block, index) => {
+                        setTimeout(() => {
+                            block.classList.add('animate');
+                        }, index * 150); // Reduced delay for smoother effect
+                    });
+                    observer.disconnect();
+                }
+            }, { threshold: 0.5 });
+            observer.observe(aboutSection);
+        }
+    });
+</script>

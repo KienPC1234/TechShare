@@ -1,11 +1,11 @@
 ﻿@page
 @model LoginSystem.Pages.RegisterModel
+@addTagHelper *, LoginSystem
 @{
     ViewData["Title"] = "Đăng ký";
     Layout = "_Layout";
 }
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
     body {
@@ -14,6 +14,7 @@
         min-height: 100vh;
         display: flex;
         align-items: center;
+        zoom:0.9
     }
 
     .register-section {
@@ -174,6 +175,7 @@
                             <input type="hidden" asp-for="Input.AvatarRequest" id="avatarRequest" value="No Avatar" />
                             <span class="text-danger" id="avatarError"></span>
                         </div>
+                        @Html.RenderCaptchaV2()
                         <button type="submit" class="btn btn-primary w-100">Đăng ký</button>
                     </form>
                     <div class="login-link mt-4 text-center">

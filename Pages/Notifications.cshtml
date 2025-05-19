@@ -7,7 +7,7 @@
     <div class="col-12">
         <h1 class="mb-4">Thông Báo</h1>
         <div class="d-flex justify-content-end mb-3 gap-2">
-            <button id="mark-all-read" class="btn btn-primary" @(Model.Notifications.Any(n => !n.IsRead) ? "" : "disabled")>Đánh Dấu Tất Cả Đã Đọc</button>
+            <button id="mark-all-read" class="btn btn-primary" @(Model.HasUnreadNotifications ? "" : "disabled")>Đánh Dấu Tất Cả Đã Đọc</button>
             <button id="delete-all-notifications" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal" @(Model.Notifications.Any() ? "" : "disabled")>Xóa Tất Cả</button>
         </div>
         <div id="notifications-list">
@@ -43,7 +43,7 @@
                                 <p class="mb-1">@notification.Content</p>
                                 <small class="text-muted">@notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
                             </div>
-                            <a href="@redirectUrl" class="notification-item btn btn-link text-decoration-none me-2">Xem</a>
+                            <a href="@redirectUrl" class="notification-item btn btn-link text-decoration-none me-2" data-notification-id="@notification.Id">Xem</a>
                             <button class="btn btn-link text-danger delete-notification" data-notification-id="@notification.Id"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -107,7 +107,6 @@
             .notification-card.unread::before {
                 content: '';
                 position: absolute;
-                left: 10px;
                 top: 50%;
                 transform: translateY(-50%);
                 width: 8px;
@@ -138,7 +137,7 @@
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        $(document).ready(function () {
+        document.addEventListener('DOMContentLoaded', () => {
             let unreadCount = 0;
 
             // SignalR connection
@@ -147,7 +146,7 @@
                 .withAutomaticReconnect()
                 .build();
 
-            connection.on("ReceiveNotification", function (notificationId, content, createdAt, redirectUrl, type) {
+            connection.on("ReceiveNotification", (notificationId, content, createdAt, redirectUrl, type) => {
                 console.log("New notification received:", { notificationId, content: content.substring(0, 10) + "...", createdAt, type });
                 const iconClass = {
                     "ItemComment": "fas fa-comment",
@@ -167,124 +166,154 @@
                                 <p class="mb-1">${content}</p>
                                 <small class="text-muted">${new Date(createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
                             </div>
-                            <a href="${redirectUrl}" class="notification-item btn btn-link text-decoration-none me-2">Xem</a>
+                            <a href="${redirectUrl}" class="notification-item btn btn-link text-decoration-none me-2" data-notification-id="${notificationId}">Xem</a>
                             <button class="btn btn-link text-danger delete-notification" data-notification-id="${notificationId}"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>`;
-                $("#notifications-list").prepend(notificationHtml);
-                $("#delete-all-notifications").removeAttr("disabled");
-                $("#mark-all-read").removeAttr("disabled");
+                document.getElementById("notifications-list").insertAdjacentHTML('afterbegin', notificationHtml);
+                document.getElementById("delete-all-notifications").removeAttribute("disabled");
+                document.getElementById("mark-all-read").removeAttribute("disabled");
                 unreadCount++;
                 updateNotificationBadge();
             });
 
-            connection.start().catch(function (err) {
-                console.error("NotificationHub connection failed:", err.toString());
-            });
+            connection.start().catch(err => console.error("NotificationHub connection failed:", err));
 
             // Mark notification as read
-            $(document).on('click', '.notification-item', function (e) {
-                e.preventDefault();
-                const $item = $(this);
-                const notificationId = $item.data('notification-id') || $item.closest('.notification-card').data('notification-id');
-                const redirectUrl = $item.attr('href');
-                const $card = $item.closest('.notification-card');
-                if ($card.hasClass('unread')) {
-                    $.ajax({
-                        url: `/api/notifications/mark-read/${notificationId}`,
-                        type: 'POST',
-                        success: function () {
-                            $card.removeClass('unread');
-                            unreadCount = Math.max(0, unreadCount - 1);
-                            updateNotificationBadge();
+            document.addEventListener('click', async (e) => {
+                if (e.target.closest('.notification-item')) {
+                    e.preventDefault();
+                    const item = e.target.closest('.notification-item');
+                    const notificationId = item.dataset.notificationId;
+                    const redirectUrl = item.getAttribute('href');
+                    const card = item.closest('.notification-card');
+
+                    if (card.classList.contains('unread')) {
+                        try {
+                            const response = await fetch(`/api/notifications/mark-read/${notificationId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            if (response.ok) {
+                                card.classList.remove('unread');
+                                unreadCount = Math.max(0, unreadCount - 1);
+                                updateNotificationBadge();
+                                checkAllReadStatus();
+                            }
                             window.location.href = redirectUrl;
-                        },
-                        error: function () {
+                        } catch {
                             window.location.href = redirectUrl;
                         }
-                    });
-                } else {
-                    window.location.href = redirectUrl;
+                    } else {
+                        window.location.href = redirectUrl;
+                    }
                 }
             });
 
             // Delete single notification
-            $(document).on('click', '.delete-notification', function () {
-                const notificationId = $(this).data('notification-id');
-                const $card = $(this).closest('.notification-card');
-                $.ajax({
-                    url: `/api/notifications/${notificationId}`,
-                    type: 'DELETE',
-                    success: function () {
-                        $card.remove();
-                        if ($card.hasClass('unread')) {
-                            unreadCount = Math.max(0, unreadCount - 1);
-                            updateNotificationBadge();
+            document.addEventListener('click', async (e) => {
+                if (e.target.closest('.delete-notification')) {
+                    const button = e.target.closest('.delete-notification');
+                    const notificationId = button.dataset.notificationId;
+                    const card = button.closest('.notification-card');
+                    try {
+                        const response = await fetch(`/api/notifications/${notificationId}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (response.ok) {
+                            card.remove();
+                            if (card.classList.contains('unread')) {
+                                unreadCount = Math.max(0, unreadCount - 1);
+                                updateNotificationBadge();
+                            }
+                            if (!document.querySelector('#notifications-list .notification-card')) {
+                                document.getElementById('notifications-list').innerHTML = '<p class="text-muted">Không có thông báo nào.</p>';
+                                document.getElementById("delete-all-notifications").setAttribute("disabled", "disabled");
+                                document.getElementById("mark-all-read").setAttribute("disabled", "disabled");
+                            }
+                        } else {
+                            alert("Lỗi khi xóa thông báo");
                         }
-                        if ($('#notifications-list').children('.notification-card').length === 0) {
-                            $('#notifications-list').html('<p class="text-muted">Không có thông báo nào.</p>');
-                            $("#delete-all-notifications").attr("disabled", "disabled");
-                            $("#mark-all-read").attr("disabled", "disabled");
-                        }
-                    },
-                    error: function () {
+                    } catch {
                         alert("Lỗi khi xóa thông báo");
                     }
-                });
+                }
             });
 
             // Mark all notifications as read
-            $("#mark-all-read").click(function () {
-                $.ajax({
-                    url: '/api/notifications/mark-all-read',
-                    type: 'POST',
-                    success: function () {
-                        $('.notification-card.unread').removeClass('unread');
+            document.getElementById("mark-all-read").addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/api/notifications/mark-all-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (response.ok) {
+                        document.querySelectorAll('.notification-card.unread').forEach(card => card.classList.remove('unread'));
                         unreadCount = 0;
                         updateNotificationBadge();
-                        $("#mark-all-read").attr("disabled", "disabled");
-                    },
-                    error: function () {
+                        document.getElementById("mark-all-read").setAttribute("disabled", "disabled");
+                    } else {
                         alert("Lỗi khi đánh dấu tất cả thông báo đã đọc");
                     }
-                });
+                } catch {
+                    alert("Lỗi khi đánh dấu tất cả thông báo đã đọc");
+                }
             });
 
             // Delete all notifications
-            $("#confirm-delete-all").click(function () {
-                $.ajax({
-                    url: '/api/notifications',
-                    type: 'DELETE',
-                    success: function () {
-                        $("#notifications-list").html('<p class="text-muted">Không có thông báo nào.</p>');
-                        $("#delete-all-notifications").attr("disabled", "disabled");
-                        $("#mark-all-read").attr("disabled", "disabled");
+            document.getElementById("confirm-delete-all").addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/api/notifications', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (response.ok) {
+                        document.getElementById("notifications-list").innerHTML = '<p class="text-muted">Không có thông báo nào.</p>';
+                        document.getElementById("delete-all-notifications").setAttribute("disabled", "disabled");
+                        document.getElementById("mark-all-read").setAttribute("disabled", "disabled");
                         unreadCount = 0;
                         updateNotificationBadge();
-                        $("#deleteAllModal").modal('hide');
-                    },
-                    error: function () {
-                        $("#deleteAllModal").modal('hide');
+                        bootstrap.Modal.getInstance(document.getElementById("deleteAllModal")).hide();
+                    } else {
+                        bootstrap.Modal.getInstance(document.getElementById("deleteAllModal")).hide();
                         alert("Lỗi khi xóa tất cả thông báo");
                     }
-                });
+                } catch {
+                    bootstrap.Modal.getInstance(document.getElementById("deleteAllModal")).hide();
+                    alert("Lỗi khi xóa tất cả thông báo");
+                }
             });
 
             // Update notification count in navbar
             function updateNotificationBadge() {
-                const $badge = $('#notification-count');
-                if (unreadCount > 0) {
-                    $badge.text(unreadCount).show();
-                } else {
-                    $badge.hide();
+                const badge = document.getElementById('notification-count');
+                if (badge) {
+                    if (unreadCount > 0) {
+                        badge.textContent = unreadCount;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+
+            // Check if all notifications are read
+            function checkAllReadStatus() {
+                if (!document.querySelector('.notification-card.unread')) {
+                    document.getElementById("mark-all-read").setAttribute("disabled", "disabled");
                 }
             }
 
             // Initial notification count
-            $.get('/api/notifications/unread-count', function (count) {
-                unreadCount = count;
-                updateNotificationBadge();
-            });
+            fetch('/api/notifications/unread-count')
+                .then(response => response.json())
+                .then(count => {
+                    unreadCount = count;
+                    updateNotificationBadge();
+                    checkAllReadStatus();
+                })
+                .catch(err => console.error("Failed to fetch unread count:", err));
         });
     </script>
 }

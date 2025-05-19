@@ -5,6 +5,7 @@
 @using HtmlAgilityPack
 @using System.Text.RegularExpressions
 @inject UserManager<ApplicationUser> UserManager
+@inject LoginSystem.Data.ApplicationDbContext DbContext
 
 @{
     var sanitizer = new HtmlSanitizer();
@@ -24,6 +25,21 @@
     sanitizer.AllowedAttributes.Add("href");
     sanitizer.AllowedAttributes.Add("title");
     sanitizer.AllowedAttributes.Add("style");
+
+    string HighlightQuery(string text, string query)
+    {
+        if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(text)) return text;
+        var queryWords = Regex.Split(query.ToLower(), @"\s+");
+        var result = text;
+        foreach (var word in queryWords)
+        {
+            if (!string.IsNullOrEmpty(word))
+            {
+                result = Regex.Replace(result, $@"(?i)\b{Regex.Escape(word)}\b", "<span class='bg-warning text-dark'>$0</span>");
+            }
+        }
+        return result;
+    }
 
     string GetShortDescription(string html, string query)
     {
@@ -51,42 +67,101 @@
         var shortText = start > 0 ? "..." : "";
         shortText += plainText.Substring(start, length);
         if (start + length < plainText.Length) shortText += "...";
-        return $"<p>{shortText}</p>";
+        return $"<p>{HighlightQuery(shortText, query)}</p>";
+    }
+
+    string GetOrganizationName(string? organizationId)
+    {
+        if (string.IsNullOrEmpty(organizationId))
+        {
+            return "Không Tổ Chức";
+        }
+
+        var organization = DbContext.Organizations
+            .Where(o => o.Id == organizationId)
+            .Select(o => o.Name)
+            .FirstOrDefault();
+
+        return organization ?? "Không Tổ Chức";
     }
 }
 
-@{
-    ViewData["Title"] = "Tìm Kiếm Mặt Hàng";
-}
+<div class="container my-5">
+    <h2 class="mb-4 text-primary">@ViewData["Title"]</h2>
 
-<div class="container mt-4">
-    <h2>@ViewData["Title"]</h2>
-
-    <form method="get" class="mb-4">
-        <div class="input-group">
-            <input type="text" asp-for="Query" class="form-control" placeholder="Nhập từ khóa tìm kiếm..." />
-            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+    <form method="get" class="mb-5 card p-4 shadow-sm">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="Query" class="form-label">Từ khóa</label>
+                <input type="text" asp-for="Query" class="form-control" id="Query" placeholder="Nhập từ khóa tìm kiếm..." />
+            </div>
+            <div class="col-md-4">
+                <label for="CategoryId" class="form-label">Danh mục</label>
+                <select asp-for="CategoryId" asp-items="@Model.Categories" class="form-select" id="CategoryId">
+                    <option value="">Tất cả</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="Tags" class="form-label">Tags</label>
+                <input type="text" asp-for="Tags" class="form-control" id="Tags" placeholder="Nhập tags, cách nhau bằng dấu phẩy" />
+            </div>
+        </div>
+        <div class="row g-3 mt-3 align-items-end">
+            <div class="col-md-4">
+                <label for="SortBy" class="form-label">Sắp xếp theo</label>
+                <select asp-for="SortBy" class="form-select" id="SortBy">
+                    <option value="relevance">Độ liên quan</option>
+                    <option value="rating">Điểm đánh giá</option>
+                    <option value="quantity">Số lượng</option>
+                </select>
+            </div>
+            <div class="col-md-8 text-end">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-search me-2"></i>Tìm kiếm
+                </button>
+            </div>
         </div>
     </form>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="alert alert-danger" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
             @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
     @if (Model.Results.Any())
     {
-        <h4>Kết quả tìm kiếm: @Model.Results.Count mặt hàng</h4>
-        <div class="row">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Kết quả tìm kiếm: @Model.Results.Count mặt hàng</h4>
+            <nav aria-label="Page navigation">
+                <ul class="pagination mb-0">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-page="/Exchange/Search" asp-route-Query="@Model.Query" asp-route-CategoryId="@Model.CategoryId" asp-route-Tags="@Model.Tags" asp-route-SortBy="@Model.SortBy" asp-route-Page="@(Model.CurrentPage - 1)">Trước</a>
+                        </li>
+                    }
+                    <li class="page-item disabled"><span class="page-link">Trang @Model.CurrentPage / @Model.TotalPages</span></li>
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-page="/Exchange/Search" asp-route-Query="@Model.Query" asp-route-CategoryId="@Model.CategoryId" asp-route-Tags="@Model.Tags" asp-route-SortBy="@Model.SortBy" asp-route-Page="@(Model.CurrentPage + 1)">Sau</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             @foreach (var result in Model.Results)
             {
                 var sanitizedDescription = sanitizer.Sanitize(result.Item.Description ?? "<p></p>");
                 var shortDescription = GetShortDescription(sanitizedDescription, Model.Query);
+                var sanitizedTitle = HighlightQuery(result.Item.Title, Model.Query);
 
-                <div class="col-md-4 mb-3">
-                    <div class="card">
+                <div class="col">
+                    <div class="card h-100 shadow-sm transition hover-shadow">
                         @if (result.Item.MediaItems.Any(m => m.MediaType == LoginSystem.Models.MediaType.Image))
                         {
                             <img src="@result.Item.MediaItems.First(m => m.MediaType == LoginSystem.Models.MediaType.Image).Url" class="card-img-top" alt="@result.Item.Title" style="height: 200px; object-fit: cover;" />
@@ -96,15 +171,24 @@
                             <img src="/images/placeholder.jpg" class="card-img-top" alt="No image" style="height: 200px; object-fit: cover;" />
                         }
                         <div class="card-body">
-                            <h5 class="card-title">@result.Item.Title</h5>
-                            <div class="card-text">
-                                @Html.Raw(shortDescription)
-                            </div>
-                            <p class="card-text"><strong>Danh mục:</strong> @result.Item.Category?.Name</p>
-                            <p class="card-text"><strong>Số lượng:</strong> @result.Item.QuantityAvailable</p>
-                            <p class="card-text"><strong>Điểm đánh giá:</strong> @(result.AvgRating.ToString("F1"))</p>
-                            <p class="card-text"><strong>Độ liên quan:</strong> @(result.RelevanceScore.ToString("F2"))</p>
-                            <a asp-page="/Exchange/Item" asp-route-id="@result.Item.Id" class="btn btn-primary">Xem chi tiết</a>
+                            <h5 class="card-title">@Html.Raw(sanitizedTitle)</h5>
+                            <div class="card-text text-muted mb-3">@Html.Raw(shortDescription)</div>
+                            <ul class="list-unstyled">
+                                <li><strong>Danh mục:</strong> @(result.Item.Category?.Name ?? "Không có")</li>
+                                <li><strong>Số lượng:</strong> @result.Item.QuantityAvailable</li>
+                                <li><strong>Điểm đánh giá:</strong> @(result.AvgRating.ToString("F1") ?? "Chưa có")</li>
+                                <li><strong>Tổ chức:</strong> @GetOrganizationName(result.Item.OrganizationId)</li>
+                            </ul>
+                            @if (result.Item.Tags.Any())
+                            {
+                                <div class="mb-3">
+                                    @foreach (var tag in result.Item.Tags)
+                                    {
+                                        <span class="badge bg-primary me-1">@tag.Tag</span>
+                                    }
+                                </div>
+                            }
+                            <a asp-page="/Exchange/Item" asp-route-id="@result.Item.Id" class="btn btn-outline-primary w-100">Xem chi tiết</a>
                         </div>
                     </div>
                 </div>
@@ -113,6 +197,17 @@
     }
     else
     {
-        <p>Không tìm thấy mặt hàng nào phù hợp.</p>
+        <div class="alert alert-info" role="alert">
+            Không tìm thấy mặt hàng nào phù hợp.
+        </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('mouseenter', () => card.classList.add('shadow-lg'));
+            card.addEventListener('mouseleave', () => card.classList.remove('shadow-lg'));
+        });
+    </script>
+}

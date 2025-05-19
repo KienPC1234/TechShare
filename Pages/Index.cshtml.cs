@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace TechShare.Pages
+namespace LoginSystem.Pages
 {
     public class IndexModel : PageModel
     {
@@ -12,9 +12,10 @@ namespace TechShare.Pages
             _logger = logger;
         }
 
-        public void OnGet()
-        {
 
+        public IActionResult OnGet()
+        {
+            return Page();
         }
     }
 }

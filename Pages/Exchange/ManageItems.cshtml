@@ -4,23 +4,226 @@
 @using LoginSystem.Models
 @inject UserManager<ApplicationUser> UserManager
 
-<div class="container mt-4">
-    <h1 class="mb-4">Quản lý mặt hàng của bạn</h1>
+<style>
+    body {
+        background: linear-gradient(135deg, #e0e7ff, #f3e8ff);
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .title {
+        font-size: 2.5rem;
+        color: #1e3a8a;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .alert {
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert-danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+
+    .table-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    th {
+        background: linear-gradient(to bottom, #3b82f6, #2563eb);
+        color: white;
+        padding: 1rem;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    td {
+        padding: 1rem;
+        color: #1f2937;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    tr {
+        transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+            transform: translateY(-2px);
+        }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .status-private {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-public {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(to right, #3b82f6, #1d4ed8);
+        color: white;
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(to right, #2563eb, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+    .btn-danger {
+        background: linear-gradient(to right, #ef4444, #b91c1c);
+        color: white;
+        border: none;
+    }
+
+        .btn-danger:hover {
+            background: linear-gradient(to right, #dc2626, #991b1b);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+    .create-btn {
+        background: linear-gradient(to right, #10b981, #059669);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+
+        .create-btn:hover {
+            background: linear-gradient(to right, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+    .empty-state {
+        background: #e0f2fe;
+        color: #1e40af;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        font-size: 1.1rem;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .title {
+            font-size: 2rem;
+        }
+
+        .btn {
+            padding: 0.4rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+    }
+</style>
+
+<div class="container">
+    <h1 class="title animate__animated animate__fadeInDown">Quản lý mặt hàng của bạn</h1>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="alert alert-danger">@Model.ErrorMessage</div>
+        <div class="alert alert-danger fade-in">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            @Model.ErrorMessage
+        </div>
     }
 
     @if (!string.IsNullOrEmpty(Model.SuccessMessage))
     {
-        <div class="alert alert-success">@Model.SuccessMessage</div>
+        <div class="alert alert-success fade-in">
+            <i class="fas fa-check-circle me-2"></i>
+            @Model.SuccessMessage
+        </div>
     }
 
     @if (Model.Items.Any())
     {
-        <div class="table-responsive">
-            <table class="table table-striped">
+        <div class="table-container animate__animated animate__fadeIn">
+            <table>
                 <thead>
                     <tr>
                         <th>Tiêu đề</th>
@@ -33,33 +236,23 @@
                 <tbody>
                     @foreach (var item in Model.Items)
                     {
-                        <tr>
-                            <td><a asp-page="/Exchange/Item" asp-route-id="@item.Id">@item.Title</a></td>
+                        <tr class="fade-in">
+                            <td><a asp-page="/Exchange/Item" asp-route-id="@item.Id" class="text-blue-600 hover:text-blue-800 transition duration-200">@item.Title</a></td>
                             <td>@(item.Category?.Name ?? "Không có")</td>
                             <td>@item.QuantityAvailable</td>
-                            <td>@(item.IsPrivate ? "Riêng tư" : "Công khai")</td>
                             <td>
-                                <a asp-page="/Exchange/EditItem" asp-route-id="@item.Id" class="btn btn-primary btn-sm">Chỉnh sửa</a>
-                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal_@item.Id">Xóa</button>
-                                <div class="modal fade" id="deleteModal_@item.Id" tabindex="-1" aria-labelledby="deleteModalLabel_@item.Id" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="deleteModalLabel_@item.Id">Xác nhận xóa</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                Bạn có chắc muốn xóa mặt hàng <strong>@item.Title</strong>?
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                                <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" class="d-inline">
-                                                    <button type="submit" class="btn btn-danger">Xóa</button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <span class="status-badge @(item.IsPrivate ? "status-private" : "status-public")">
+                                    @(item.IsPrivate ? "Riêng tư" : "Công khai")
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-page="/Exchange/EditItem" asp-route-id="@item.Id" class="btn btn-primary"><i class="fas fa-edit"></i> Chỉnh sửa</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" class="delete-form d-inline">
+                                    <button type="submit" class="btn btn-danger delete-btn" data-title="@item.Title">
+                                        <span class="button-text"><i class="fas fa-trash"></i> Xóa</span>
+                                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }
@@ -69,15 +262,45 @@
     }
     else
     {
-        <p class="alert alert-info">Bạn chưa đăng mặt hàng nào.</p>
+        <div class="empty-state fade-in">
+            <i class="fas fa-box-open fa-2x mb-3"></i>
+            <p>Bạn chưa đăng mặt hàng nào. Hãy tạo mặt hàng mới để bắt đầu!</p>
+        </div>
     }
 
-    <div class="mt-4">
-        <a asp-page="/Exchange/CreateItem" class="btn btn-primary">Tạo mặt hàng mới</a>
+    <div class="mt-6 text-center">
+        <a asp-page="/Exchange/CreateItem" class="create-btn animate__animated animate__fadeInUp"><i class="fas fa-plus me-2"></i> Tạo mặt hàng mới</a>
     </div>
 </div>
 
 @section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Handle delete form submission with browser confirm
+            document.querySelectorAll('.delete-form').forEach(form => {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const btn = form.querySelector('.delete-btn');
+                    const title = btn.dataset.title;
+                    const btnText = btn.querySelector('.button-text');
+                    const spinner = btn.querySelector('.spinner-border');
+
+                    // Show browser confirm dialog
+                    if (confirm(`Bạn có chắc muốn xóa mặt hàng "${title}"? Hành động này không thể hoàn tác.`)) {
+                        // Disable button and show spinner
+                        btn.disabled = true;
+                        btnText.classList.add('d-none');
+                        spinner.classList.remove('d-none');
+
+                        // Submit form
+                        form.submit();
+                    }
+                });
+            });
+        });
+    </script>
 }

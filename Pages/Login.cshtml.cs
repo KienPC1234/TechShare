@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
+using LoginSystem.Security;
 
 namespace LoginSystem.Pages
 {
@@ -14,14 +15,17 @@ namespace LoginSystem.Pages
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly IRecaptchaService _recaptcha;
         private readonly IWebHostEnvironment _environment;
 
         public LoginModel(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             ILogger<LoginModel> logger,
+            IRecaptchaService recaptcha,
             IWebHostEnvironment environment)
         {
+            _recaptcha = recaptcha;
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
@@ -30,6 +34,9 @@ namespace LoginSystem.Pages
 
         [BindProperty]
         public InputModel Input { get; set; }
+
+        [BindProperty(Name = "g-recaptcha-response")]
+        public string RecaptchaToken { get; set; }
 
         public class InputModel
         {
@@ -64,6 +71,13 @@ namespace LoginSystem.Pages
 
         public async Task<IActionResult> OnPostLoginAsync()
         {
+            // Kiểm tra reCAPTCHA
+            if (!await _recaptcha.VerifyAsync(RecaptchaToken))
+            {
+                ModelState.AddModelError(string.Empty, "Xác thực reCAPTCHA thất bại");
+                return Page();
+            }
+
             ModelState.Remove("Input.ReturnUrl");
 
             if (!ModelState.IsValid)

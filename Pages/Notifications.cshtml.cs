@@ -33,6 +33,7 @@ namespace LoginSystem.Pages
         public List<Notification> Notifications { get; set; } = new List<Notification>();
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; }
+        public bool HasUnreadNotifications { get; set; }
         private const int PageSize = 10;
 
         public async Task<IActionResult> OnGetAsync(int page = 1)
@@ -41,6 +42,7 @@ namespace LoginSystem.Pages
             {
                 var userId = _userManager.GetUserId(User);
                 _logger.LogInformation("Loading notifications for user {UserId}, page {Page}", userId, page);
+
                 var query = _context.Notifications
                     .Where(n => n.UserId == userId)
                     .OrderByDescending(n => n.CreatedAt);
@@ -53,6 +55,8 @@ namespace LoginSystem.Pages
                     .Skip((CurrentPage - 1) * PageSize)
                     .Take(PageSize)
                     .ToListAsync();
+
+                HasUnreadNotifications = await query.AnyAsync(n => !n.IsRead);
 
                 return Page();
             }

@@ -334,8 +334,11 @@ namespace LoginSystem.Pages.Exchange
 
             try
             {
+                _logger.LogInformation("OnPostRateAsync: Processing rating for item {ItemId} with score {Score}.", id, score);
+
                 if (score < 1 || score > 5)
                 {
+                    _logger.LogWarning("OnPostRateAsync: Invalid score {Score} for item {ItemId}. Score must be between 1 and 5.", score, id);
                     ErrorMessage = "Điểm đánh giá phải từ 1 đến 5.";
                     await OnGetAsync(id);
                     return Page();
@@ -347,6 +350,7 @@ namespace LoginSystem.Pages.Exchange
                     _logger.LogWarning("OnPostRateAsync: User not authenticated for item {ItemId}.", id);
                     return StatusCode(401, "Người dùng không được xác thực.");
                 }
+                _logger.LogDebug("OnPostRateAsync: User {UserId} authenticated for item {ItemId}.", user.Id, id);
 
                 var item = await _context.ExchangeItems.FindAsync(id);
                 if (item == null)
@@ -354,15 +358,17 @@ namespace LoginSystem.Pages.Exchange
                     _logger.LogWarning("OnPostRateAsync: Item {ItemId} not found.", id);
                     return NotFound("Mặt hàng không tồn tại.");
                 }
+                _logger.LogDebug("OnPostRateAsync: Item {ItemId} found with title {ItemTitle}.", id, item.Title);
 
-                var existingRating = await _context.ItemRatings
-                    .FirstOrDefaultAsync(r => r.ItemId == id && r.UserId == user.Id);
+                var oldRatings = await _context.ItemRatings
+                    .Where(r => r.ItemId == id && r.UserId == user.Id)
+                    .ToListAsync();
+                _logger.LogInformation("OnPostRateAsync: Found {OldRatingCount} existing ratings for item {ItemId} by user {UserId}.", oldRatings.Count, id, user.Id);
 
-                if (existingRating != null)
+                if (oldRatings.Count > 0)
                 {
-                    ErrorMessage = "Bạn đã đánh giá mặt hàng này rồi.";
-                    await OnGetAsync(id);
-                    return Page();
+                    _logger.LogDebug("OnPostRateAsync: Removing {OldRatingCount} old ratings for item {ItemId} by user {UserId}.", oldRatings.Count, id, user.Id);
+                    _context.ItemRatings.RemoveRange(oldRatings);
                 }
 
                 var rating = new ItemRating
@@ -373,8 +379,11 @@ namespace LoginSystem.Pages.Exchange
                     Score = score,
                     RatedAt = DateTime.UtcNow
                 };
+                _logger.LogDebug("OnPostRateAsync: Adding new rating with ID {RatingId}, score {Score} for item {ItemId} by user {UserId}.", rating.Id, score, id, user.Id);
 
                 _context.ItemRatings.Add(rating);
+
+                _logger.LogInformation("OnPostRateAsync: Saving changes for item {ItemId}.", id);
                 await _context.SaveChangesAsync();
 
                 if (item.OwnerId != user.Id)
@@ -389,6 +398,8 @@ namespace LoginSystem.Pages.Exchange
                         CreatedAt = DateTime.UtcNow
                     };
                     _context.Notifications.Add(notification);
+                    _logger.LogDebug("OnPostRateAsync: Created notification {NotificationId} for owner {OwnerId} of item {ItemId}.", notification.Id, item.OwnerId, id);
+
                     await _context.SaveChangesAsync();
 
                     await _hubContext.Clients.User(item.OwnerId).SendAsync("ReceiveNotification",
@@ -397,15 +408,17 @@ namespace LoginSystem.Pages.Exchange
                         notification.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                         $"/Exchange/Item/{item.Id}",
                         notification.Type);
+                    _logger.LogInformation("OnPostRateAsync: Sent notification to owner {OwnerId} for item {ItemId}.", item.OwnerId, id);
                 }
 
+                _logger.LogInformation("OnPostRateAsync: Rating successfully processed for item {ItemId} with score {Score} by user {UserId}.", id, score, user.Id);
                 SuccessMessage = "Đánh giá đã được gửi thành công.";
                 return RedirectToPage(new { id });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "OnPostRateAsync: Error processing rating for item {ItemId} with score {Score}.", id, score);
                 ErrorMessage = $"Lỗi khi gửi đánh giá: {ex.Message}";
-                _logger.LogError(ex, "Error in OnPostRateAsync for item {ItemId}", id);
                 await OnGetAsync(id);
                 return Page();
             }
@@ -493,6 +506,55 @@ namespace LoginSystem.Pages.Exchange
             {
                 ErrorMessage = $"Lỗi khi gửi báo cáo: {ex.Message}";
                 _logger.LogError(ex, "Error in OnPostReportAsync for item {ItemId}", id);
+                await OnGetAsync(id);
+                return Page();
+            }
+        }
+
+        public async Task<IActionResult> OnPostDeleteCommentAsync(string commentId, string id)
+        {
+            if (string.IsNullOrEmpty(commentId) || string.IsNullOrEmpty(id))
+            {
+                _logger.LogWarning("OnPostDeleteCommentAsync: Invalid comment ID {CommentId} or item ID {ItemId}.", commentId, id);
+                return NotFound("ID bình luận hoặc mặt hàng không hợp lệ.");
+            }
+
+            try
+            {
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    _logger.LogWarning("OnPostDeleteCommentAsync: User not authenticated for comment {CommentId}.", commentId);
+                    return StatusCode(401, "Người dùng không được xác thực.");
+                }
+
+                var comment = await _context.ItemComments
+                    .FirstOrDefaultAsync(c => c.Id == commentId && c.ItemId == id);
+
+                if (comment == null)
+                {
+                    _logger.LogWarning("OnPostDeleteCommentAsync: Comment {CommentId} not found for item {ItemId}.", commentId, id);
+                    return NotFound("Bình luận không tồn tại.");
+                }
+
+                if (comment.UserId != user.Id)
+                {
+                    _logger.LogWarning("OnPostDeleteCommentAsync: User {UserId} not authorized to delete comment {CommentId}.", user.Id, commentId);
+                    return Forbid();
+                }
+
+                _context.ItemComments.Remove(comment);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Comment {CommentId} deleted by user {UserId} for item {ItemId}.", commentId, user.Id, id);
+
+                SuccessMessage = "Bình luận đã được xóa thành công.";
+                return RedirectToPage(new { id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in OnPostDeleteCommentAsync for comment {CommentId} and item {ItemId}.", commentId, id);
+                ErrorMessage = $"Lỗi khi xóa bình luận: {ex.Message}";
                 await OnGetAsync(id);
                 return Page();
             }

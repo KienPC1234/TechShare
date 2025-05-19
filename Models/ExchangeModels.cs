@@ -34,7 +34,7 @@ namespace LoginSystem.Models
         [Required(ErrorMessage = "Người sở hữu là bắt buộc.")]
         public string OwnerId { get; set; } = string.Empty;
 
-        public string? OrganizationId { get; set; } = "Không Tổ Chức"; // Optional, defaults to "Không Tổ Chức"
+        public string? OrganizationId { get; set; }
 
         [Required(ErrorMessage = "Vui lòng chọn danh mục.")]
         public string CategoryId { get; set; } = string.Empty;

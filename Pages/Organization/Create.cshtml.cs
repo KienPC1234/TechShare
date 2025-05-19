@@ -15,6 +15,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 using Microsoft.Extensions.Logging;
+using LoginSystem.Security;
 
 namespace LoginSystem.Pages.Organization
 {
@@ -26,23 +27,29 @@ namespace LoginSystem.Pages.Organization
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<CreateModel> _logger;
+        private readonly IRecaptchaService _recaptcha;
 
         public CreateModel(
             ApplicationDbContext dbContext,
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IWebHostEnvironment environment,
+            IRecaptchaService recaptcha,
             ILogger<CreateModel> logger)
         {
             _dbContext = dbContext;
             _userManager = userManager;
             _signInManager = signInManager;
             _environment = environment;
+            _recaptcha = recaptcha;
             _logger = logger;
         }
 
         [BindProperty]
         public InputModel Input { get; set; } = new InputModel();
+
+        [BindProperty(Name = "g-recaptcha-response")]
+        public string RecaptchaToken { get; set; }
 
         public class InputModel
         {
@@ -79,6 +86,12 @@ namespace LoginSystem.Pages.Organization
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (!await _recaptcha.VerifyAsync(RecaptchaToken))
+            {
+                ModelState.AddModelError(string.Empty, "Xác thực reCAPTCHA thất bại");
+                return Page();
+            }
+
             if (!ModelState.IsValid)
                 return Page();
 

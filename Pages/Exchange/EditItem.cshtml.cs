@@ -75,9 +75,25 @@ namespace LoginSystem.Pages.Exchange
             }
 
             Tags = string.Join(", ", Item.Tags.Select(t => t.Tag));
-            HasOrganization = !string.IsNullOrWhiteSpace(user.OrganizationId) && await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
+            HasOrganization = await ValidateUserOrganizationAsync(user);
             await LoadSelectListsAsync();
             return Page();
+        }
+
+        private async Task<bool> ValidateUserOrganizationAsync(ApplicationUser user)
+        {
+            if (string.IsNullOrWhiteSpace(user.OrganizationId))
+            {
+                return false;
+            }
+
+            if (!Guid.TryParse(user.OrganizationId, out _))
+            {
+                return false;
+            }
+
+            var orgExists = await _context.Organizations.AnyAsync(o => o.Id == user.OrganizationId);
+            return orgExists;
         }
 
         public async Task<IActionResult> OnPostAsync(string? id)

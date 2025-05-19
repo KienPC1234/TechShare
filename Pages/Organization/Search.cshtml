@@ -12,12 +12,10 @@
         var headingTags = doc.DocumentNode.Descendants()
                             .Where(n => n.Name.Length == 2 && n.Name.StartsWith("h") && char.IsDigit(n.Name[1]))
                             .ToList();
-
         foreach (var tag in headingTags)
         {
             tag.Name = "p";
         }
-
         return doc.DocumentNode.OuterHtml;
     }
 
@@ -35,106 +33,588 @@
     sanitizer.AllowedTags.Add("li");
     sanitizer.AllowedTags.Add("a");
     sanitizer.AllowedTags.Add("span");
-    sanitizer.AllowedAttributes.Add("href"); 
+    sanitizer.AllowedTags.Add("mark");
+    sanitizer.AllowedAttributes.Add("href");
     sanitizer.AllowedAttributes.Add("title");
     sanitizer.AllowedAttributes.Add("style");
 }
 
-<h1 class="mb-4 text-primary">🔍 Tìm kiếm tổ chức</h1>
-
-<form method="get" class="row g-3 align-items-center mb-4">
-    <div class="col-md-5">
-        <div class="input-group">
-            <input asp-for="SearchTerm" class="form-control" placeholder="🔎 Tên tổ chức..." />
+<div class="container-fluid py-5 hero-section" style="background: linear-gradient(135deg, #007bff, #6610f2);">
+    <div class="container">
+        <div class="text-center text-white mb-4" data-aos="fade-down">
+            <h1 class="display-4 fw-bold">🔍 Tìm Tổ Chức</h1>
+            <p class="lead">Khám phá các tổ chức phù hợp với sở thích của bạn</p>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <form method="get" class="search-form mb-4" id="searchForm" data-aos="fade-up">
+                    @Html.AntiForgeryToken()
+                    <div class="input-group mb-3 position-relative">
+                        <span class="input-group-text bg-white border-0"><i class="bi bi-search"></i></span>
+                        <input asp-for="SearchTerm" class="form-control form-control-lg border-0 shadow-sm" id="searchInput" placeholder="Tìm theo tên hoặc mô tả..." data-bs-toggle="tooltip" title="Nhập tên hoặc mô tả tổ chức" style="font-size: 1.1rem;" />
+                        <span class="input-group-text bg-white border-0 d-none" id="searchSpinner"><span class="spinner-border spinner-border-sm typing-spinner" role="status"></span></span>
+                        <button type="button" class="btn btn-outline-danger position-absolute end-0 top-0 mt-1 me-1 d-none" id="clearSearch" data-bs-toggle="tooltip" title="Xóa tìm kiếm"><i class="bi bi-x-circle"></i></button>
+                        <div class="dropdown-menu recent-searches" id="recentSearches" style="top: 100%; transform: translateY(5px); z-index: 1000; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e9ecef;">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                <span class="fw-bold">Tìm kiếm gần đây</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="clearRecentSearches" data-bs-toggle="tooltip" title="Xóa lịch sử tìm kiếm"><i class="bi bi-x"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="d-flex gap-2 flex-grow-1">
+                            <select asp-for="FilterType" class="form-select" data-bs-toggle="tooltip" title="Lọc theo loại tổ chức">
+                                <option value="All">Tất cả</option>
+                                <option value="Public">Cộng đồng</option>
+                                <option value="Private">Riêng tư</option>
+                            </select>
+                            <select asp-for="SortBy" class="form-select" data-bs-toggle="tooltip" title="Sắp xếp kết quả">
+                                <option value="Featured">📌 Nổi bật</option>
+                                <option value="MembersDesc">👥 Thành viên (nhiều nhất)</option>
+                                <option value="RatingDesc">⭐ Đánh giá (cao nhất)</option>
+                                <option value="NameAsc">🔤 Tên A-Z</option>
+                                <option value="NameDesc">🔡 Tên Z-A</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-bs-toggle="tooltip" title="Tìm kiếm tổ chức"><i class="bi bi-search me-1"></i> Tìm</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
+</div>
 
-    <div class="col-md-2">
-        <select asp-for="FilterType" class="form-select">
-            <option value="All">Tất cả</option>
-            <option value="Public">Cộng đồng</option>
-            <option value="Private">Riêng tư</option>
-        </select>
-    </div>
-
-    <div class="col-md-2">
-        <select asp-for="SortBy" class="form-select">
-            <option value="Featured">📌 Nổi bật</option>
-            <option value="MembersDesc">👥 Thành viên (nhiều nhất)</option>
-            <option value="RatingDesc">⭐ Đánh giá (cao nhất)</option>
-            <option value="NameAsc">🔤 Tên A-Z</option>
-            <option value="NameDesc">🔡 Tên Z-A</option>
-        </select>
-    </div>
-
-    <div class="col-md-3">
-        <button type="submit" class="btn btn-primary w-100">
-            🔍 Tìm kiếm
-        </button>
-    </div>
-</form>
-
-@if (!Model.Organizations.Any())
-{
-    <div class="alert alert-warning">Không tìm thấy tổ chức nào phù hợp.</div>
-}
-else
-{
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        @foreach (var orgInfo in Model.Organizations)
-        {
-            var org = orgInfo.Organization;
-            if (org == null) continue;
-
-            var rawHtml = ReplaceHeadingsWithParagraphs(org.Description ?? "");
-            var sanitizedDescription = sanitizer.Sanitize(rawHtml);
-
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(string.IsNullOrEmpty(sanitizedDescription) ? "<p></p>" : sanitizedDescription);
-            var plainText = htmlDoc.DocumentNode.InnerText;
-            var shortText = plainText.Length > 100 ? plainText.Substring(0, 100) + "..." : plainText;
-            var shortDescription = $"<p>{shortText}</p>";
-
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    <img src="@(org.AvatarUrl ?? "/images/default-org-avatar.png")"
-                         class="card-img-top"
-                         alt="Avatar tổ chức"
-                         style="height: 180px; object-fit: cover;" />
-                    <div class="card-body">
-                        <h5 class="card-title">@org.Name</h5>
-                        <p class="card-text"><strong>Loại:</strong> @(org.IsPrivate ? "Riêng tư" : "Cộng đồng")</p>
-                        <p class="card-text"><strong>Đánh giá:</strong> @orgInfo.AverageRating.ToString("0.0")/5</p>
-                        <p class="card-text"><strong>Thành viên:</strong> @orgInfo.MemberCount</p>
-                        <div class="card-text text-muted small">
-                            @if (!string.IsNullOrEmpty(shortText))
-                            {
-                                @Html.Raw(shortDescription)
-                            }
-                            else
-                            {
-                                <span>Không có mô tả.</span>
-                            }
-                        </div>
-                        <a asp-page="/Organization/Details" asp-route-slug="@org.Slug" class="btn btn-primary mt-3 w-100">Xem chi tiết</a>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <nav class="mt-4">
-        <ul class="pagination justify-content-center">
-            @for (int i = 1; i <= Model.TotalPages; i++)
-            {
-                <li class="page-item @(Model.PageIndex == i ? "active" : "")">
-                    <a class="page-link"
-                       asp-route-PageIndex="@i"
-                       asp-route-SearchTerm="@Model.SearchTerm"
-                       asp-route-FilterType="@Model.FilterType"
-                       asp-route-SortBy="@Model.SortBy">@i</a>
-                </li>
-            }
-        </ul>
+<div class="container py-5">
+    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
+    <nav class="mt-5 d-none" id="pagination" data-aos="fade-up" data-aos-delay="200">
+        <ul class="pagination justify-content-center"></ul>
     </nav>
+</div>
+
+<div class="loading-overlay d-none" id="loadingSpinner">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Đang tải...</span>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    <script>
+        const SearchApp = {
+            recentSearchTerms: JSON.parse(localStorage.getItem('recentSearches') || '[]'),
+            cache: new Map(JSON.parse(localStorage.getItem('searchCache') || '[]')),
+            CACHE_TTL: 10 * 60 * 1000, // 10 minutes
+            selectedSuggestionIndex: -1,
+
+            debounce(func, wait) {
+                let timeout;
+                return function (...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
+            },
+
+            throttle(func, wait) {
+                let timeout;
+                return function (...args) {
+                    if (!timeout) {
+                        timeout = setTimeout(() => {
+                            timeout = null;
+                            func.apply(this, args);
+                        }, wait);
+                    }
+                };
+            },
+
+            async fetchWithRetry(url, options, retries = 2, delay = 500) {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                        return await response.json();
+                    } catch (error) {
+                        if (i === retries - 1) throw error;
+                        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                    }
+                }
+            },
+
+            async fetchResults(searchTerm, filterType, sortBy, pageIndex = 1) {
+                const searchSpinner = document.getElementById('searchSpinner');
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                searchSpinner.classList.remove('d-none');
+                loadingSpinner.classList.remove('d-none');
+
+                if (!['All', 'Public', 'Private'].includes(filterType)) filterType = 'All';
+                if (!['Featured', 'MembersDesc', 'RatingDesc', 'NameAsc', 'NameDesc'].includes(sortBy)) sortBy = 'Featured';
+                if (pageIndex < 1) pageIndex = 1;
+
+                const cacheKey = `${searchTerm}|${filterType}|${sortBy}${pageIndex === 1 ? '' : '|' + pageIndex}`;
+                const cached = this.cache.get(cacheKey);
+                if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+                    this.renderResults(cached.data);
+                    searchSpinner.classList.add('d-none');
+                    loadingSpinner.classList.add('d-none');
+                    return;
+                }
+
+                try {
+                    const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+                    if (!tokenElement) throw new Error('Anti-forgery token not found');
+                    const params = new URLSearchParams({
+                        SearchTerm: searchTerm,
+                        FilterType: filterType,
+                        SortBy: sortBy,
+                        PageIndex: pageIndex
+                    });
+                    const data = await this.fetchWithRetry(`/Organization/Search?handler=SearchOrganizations&${params}`, {
+                        method: 'GET',
+                        headers: {
+                            'RequestVerificationToken': tokenElement.value
+                        }
+                    });
+
+                    this.cache.set(cacheKey, { data, timestamp: Date.now() });
+                    localStorage.setItem('searchCache', JSON.stringify([...this.cache]));
+                    this.renderResults(data);
+
+                    if (searchTerm && !this.recentSearchTerms.includes(searchTerm)) {
+                        this.recentSearchTerms.unshift(searchTerm);
+                        this.recentSearchTerms = this.recentSearchTerms.slice(0, 5);
+                        localStorage.setItem('recentSearches', JSON.stringify(this.recentSearchTerms));
+                        this.updateRecentSearches();
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    this.renderError(error.message);
+                } finally {
+                    searchSpinner.classList.add('d-none');
+                    loadingSpinner.classList.add('d-none');
+                }
+            },
+
+            renderResults(data) {
+                const resultsContainer = document.getElementById('resultsContainer');
+                const pagination = document.getElementById('pagination');
+                resultsContainer.innerHTML = '';
+                pagination.classList.toggle('d-none', !data.organizations || data.organizations.length === 0);
+
+                if (!data.organizations || data.organizations.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="col">
+                            <div class="card shadow-sm text-center p-4 border-light" data-aos="fade-up" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+                                <i class="bi bi-info-circle display-4 text-muted mb-3"></i>
+                                <h5>Không tìm thấy tổ chức</h5>
+                                <p class="text-muted">Hãy thử thay đổi từ khóa, loại tổ chức hoặc sắp xếp.</p>
+                                <button class="btn btn-outline-primary mt-3 clear-search-btn">Xóa tìm kiếm</button>
+                            </div>
+                        </div>
+                    `;
+                    this.addEventListeners();
+                    return;
+                }
+
+                resultsContainer.innerHTML = Array(3).fill().map(() => `
+                    <div class="col">
+                        <div class="card h-100 shadow-sm border-light skeleton-card">
+                            <div class="card-img-top bg-light" style="height: 180px;"></div>
+                            <div class="card-body">
+                                <h5 class="card-title placeholder-glow"><span class="placeholder col-6"></span></h5>
+                                <p class="card-text placeholder-glow"><span class="placeholder col-4"></span></p>
+                                <p class="card-text placeholder-glow"><span class="placeholder col-3"></span></p>
+                                <p class="card-text placeholder-glow"><span class="placeholder col-5"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                const fragment = document.createDocumentFragment();
+                data.organizations.forEach((orgInfo, index) => {
+                    const org = orgInfo.organization;
+                    const shortDescription = orgInfo.shortDescription || 'Không có mô tả.';
+                    const card = document.createElement('div');
+                    card.className = 'col';
+                    card.innerHTML = `
+                        <div class="card h-100 shadow-sm org-card border-light" data-aos="fade-up" data-aos-delay="${index * 100}">
+                            <img src="${org.avatarUrl || '/images/default-org-avatar.png'}" class="card-img-top" alt="Avatar tổ chức" style="height: 180px; object-fit: cover;" />
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="card-title mb-0">${org.name}</h5>
+                                    ${orgInfo.averageRating > 4.5 && orgInfo.memberCount > 10 ? '<span class="badge bg-warning text-dark glowing">Nổi bật</span>' : ''}
+                                </div>
+                                <p class="card-text mb-1"><strong>Loại:</strong> <span class="badge ${org.isPrivate ? 'bg-warning' : 'bg-success'}">${org.isPrivate ? 'Riêng tư' : 'Cộng đồng'}</span></p>
+                                <p class="card-text mb-1"><strong>Đánh giá:</strong> ${orgInfo.averageRating.toFixed(1)}/5 ⭐</p>
+                                <p class="card-text mb-2"><strong>Thành viên:</strong> ${orgInfo.memberCount} 👥</p>
+                                <div class="card-text text-muted small description">${shortDescription}</div>
+                                <a href="/Organization/Details?slug=${org.slug}" class="btn btn-outline-primary mt-3 w-100" data-bs-toggle="tooltip" title="Xem chi tiết tổ chức"><i class="bi bi-arrow-right me-1"></i> Chi tiết</a>
+                            </div>
+                        </div>
+                    `;
+                    fragment.appendChild(card);
+                });
+
+                requestAnimationFrame(() => {
+                    resultsContainer.classList.add('fade-out');
+                    setTimeout(() => {
+                        resultsContainer.innerHTML = '';
+                        resultsContainer.appendChild(fragment);
+                        resultsContainer.classList.remove('fade-out');
+                        this.observeCards();
+                        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+                    }, 200);
+                });
+
+                pagination.querySelector('ul').innerHTML = '';
+                for (let i = 1; i <= data.totalPages; i++) {
+                    pagination.querySelector('ul').insertAdjacentHTML('beforeend', `
+                        <li class="page-item ${data.pageIndex === i ? 'active' : ''}">
+                            <a class="page-link" href="#" data-page="${i}">${i}</a>
+                        </li>
+                    `);
+                }
+            },
+
+            renderError(message) {
+                const resultsContainer = document.getElementById('resultsContainer');
+                const pagination = document.getElementById('pagination');
+                resultsContainer.innerHTML = `
+                    <div class="col">
+                        <div class="card shadow-sm text-center p-4 border-light" data-aos="fade-up" style="background: linear-gradient(135deg, #fff3cd, #ffe5b4);">
+                            <i class="bi bi-cloud-slash display-4 text-warning mb-3"></i>
+                            <h5>Lỗi tải kết quả</h5>
+                            <p class="text-muted">${message || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'}</p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-primary retry-btn">Thử lại</button>
+                                <button class="btn btn-outline-secondary clear-search-btn">Xóa tìm kiếm</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                pagination.classList.add('d-none');
+                this.addEventListeners();
+            },
+
+            updateRecentSearches() {
+                const recentSearches = document.getElementById('recentSearches');
+                const content = this.recentSearchTerms.length ? this.recentSearchTerms.map((term, index) => `
+                    <a class="dropdown-item suggestion-item" href="#" data-term="${term}" data-index="${index}">${term}</a>
+                `).join('') : '<div class="dropdown-item text-muted">Không có tìm kiếm gần đây</div>';
+                recentSearches.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                        <span class="fw-bold">Tìm kiếm gần đây</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearRecentSearches" data-bs-toggle="tooltip" title="Xóa lịch sử tìm kiếm"><i class="bi bi-x"></i></button>
+                    </div>
+                    ${content}
+                `;
+            },
+
+            observeCards() {
+                const cards = document.querySelectorAll('.org-card');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1 });
+
+                cards.forEach(card => observer.observe(card));
+            },
+
+            addEventListeners() {
+                const retryButtons = document.querySelectorAll('.retry-btn');
+                const clearButtons = document.querySelectorAll('.clear-search-btn');
+                const searchInput = document.getElementById('searchInput');
+                const filterType = document.querySelector('select[name="FilterType"]');
+                const sortBy = document.querySelector('select[name="SortBy"]');
+                const clearRecentSearches = document.getElementById('clearRecentSearches');
+
+                retryButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.fetchResults(searchInput.value, filterType.value, sortBy.value);
+                    });
+                });
+
+                clearButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        searchInput.value = '';
+                        filterType.value = 'All';
+                        sortBy.value = 'Featured';
+                        document.getElementById('clearSearch').classList.add('d-none');
+                        this.fetchResults('', 'All', 'Featured');
+                    });
+                });
+
+                if (clearRecentSearches) {
+                    clearRecentSearches.addEventListener('click', () => {
+                        this.recentSearchTerms = [];
+                        localStorage.setItem('recentSearches', '[]');
+                        this.updateRecentSearches();
+                    });
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            AOS.init({
+                duration: 800,
+                once: true,
+                offset: 100
+            });
+
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+            const searchForm = document.getElementById('searchForm');
+            const searchInput = document.getElementById('searchInput');
+            const clearSearch = document.getElementById('clearSearch');
+            const filterType = document.querySelector('select[name="FilterType"]');
+            const sortBy = document.querySelector('select[name="SortBy"]');
+            const recentSearches = document.getElementById('recentSearches');
+
+            searchInput.addEventListener('input', SearchApp.debounce(() => {
+                clearSearch.classList.toggle('d-none', !searchInput.value);
+                recentSearches.classList.toggle('show', !!searchInput.value);
+                SearchApp.fetchResults(searchInput.value, filterType.value, sortBy.value);
+            }, 500));
+
+            searchInput.addEventListener('focus', () => {
+                if (searchInput.value) recentSearches.classList.add('show');
+            });
+
+            searchInput.addEventListener('blur', () => {
+                setTimeout(() => recentSearches.classList.remove('show'), 200);
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                const suggestions = document.querySelectorAll('.suggestion-item');
+                if (!suggestions.length) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    SearchApp.selectedSuggestionIndex = Math.min(SearchApp.selectedSuggestionIndex + 1, suggestions.length - 1);
+                    suggestions.forEach((s, i) => s.classList.toggle('active', i === SearchApp.selectedSuggestionIndex));
+                    suggestions[SearchApp.selectedSuggestionIndex].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    SearchApp.selectedSuggestionIndex = Math.max(SearchApp.selectedSuggestionIndex - 1, -1);
+                    suggestions.forEach((s, i) => s.classList.toggle('active', i === SearchApp.selectedSuggestionIndex));
+                    if (SearchApp.selectedSuggestionIndex >= 0) suggestions[SearchApp.selectedSuggestionIndex].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter' && SearchApp.selectedSuggestionIndex >= 0) {
+                    e.preventDefault();
+                    const term = suggestions[SearchApp.selectedSuggestionIndex].dataset.term;
+                    searchInput.value = term;
+                    clearSearch.classList.remove('d-none');
+                    SearchApp.fetchResults(term, filterType.value, sortBy.value);
+                    recentSearches.classList.remove('show');
+                }
+            });
+
+            recentSearches.addEventListener('click', (e) => {
+                const term = e.target.dataset.term;
+                if (term) {
+                    searchInput.value = term;
+                    clearSearch.classList.remove('d-none');
+                    SearchApp.fetchResults(term, filterType.value, sortBy.value);
+                    recentSearches.classList.remove('show');
+                }
+            });
+
+            filterType.addEventListener('change', SearchApp.throttle(() => {
+                SearchApp.fetchResults(searchInput.value, filterType.value, sortBy.value);
+            }, 500));
+
+            sortBy.addEventListener('change', SearchApp.throttle(() => {
+                SearchApp.fetchResults(searchInput.value, filterType.value, sortBy.value);
+            }, 500));
+
+            clearSearch.addEventListener('click', () => {
+                searchInput.value = '';
+                filterType.value = 'All';
+                sortBy.value = 'Featured';
+                clearSearch.classList.add('d-none');
+                recentSearches.classList.remove('show');
+                SearchApp.fetchResults('', 'All', 'Featured');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.page-link')) {
+                    e.preventDefault();
+                    const page = e.target.dataset.page;
+                    SearchApp.fetchResults(searchInput.value, filterType.value, sortBy.value, page);
+                }
+            });
+
+            const placeholders = ['Tìm theo tên hoặc mô tả...', 'Nhập tên tổ chức...', 'Khám phá tổ chức...'];
+            let i = 0;
+            setInterval(() => {
+                searchInput.placeholder = placeholders[i++ % placeholders.length];
+            }, 3000);
+
+            clearSearch.classList.toggle('d-none', !searchInput.value);
+            SearchApp.updateRecentSearches();
+            SearchApp.fetchResults(searchInput.value, filterType.value, sortBy.value);
+        });
+    </script>
+    <style>
+        .hero-section {
+            position: relative;
+            z-index: 1;
+        }
+
+        .search-form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s;
+        }
+
+            .search-form:hover {
+                transform: translateY(-5px);
+            }
+
+        .org-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-radius: 10px;
+            height: 380px;
+        }
+
+            .org-card.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .org-card:hover {
+                transform: scale(1.05) rotate(1deg);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            }
+
+        .glowing {
+            animation: glow 1.5s infinite alternate;
+        }
+        @@keyframes glow {
+            from
+
+        {
+            box-shadow: 0 0 5px #ffc107;
+        }
+
+        to {
+            box-shadow: 0 0 15px #ffc107;
+        }
+
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+            .loading-overlay:not(.d-none) {
+                opacity: 1;
+            }
+
+        .description mark {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .pagination .page-link {
+            transition: background-color 0.3s;
+            padding: 10px 15px;
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .recent-searches {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+
+            .recent-searches .dropdown-item:hover, .recent-searches .suggestion-item.active {
+                background-color: #f8f9fa;
+            }
+
+        .btn-outline-danger:hover {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        .btn-primary, .btn-outline-secondary {
+            transition: transform 0.2s;
+        }
+
+            .btn-primary:hover, .btn-outline-secondary:hover {
+                transform: scale(1.05);
+            }
+
+        .skeleton-card {
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .typing-spinner {
+            animation: pulse 1s infinite;
+        }
+        @@keyframes pulse {
+            0%
+
+        {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.2);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+
+        }
+        @@media (max-width: 768px) {
+            .search-form
+
+        {
+            padding: 15px;
+        }
+
+        .form-select, .btn {
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .input-group .btn {
+            margin-bottom: 0;
+        }
+
+        .recent-searches {
+            width: calc(100% - 30px);
+            left: 15px;
+        }
+
+        }
+    </style>
 }

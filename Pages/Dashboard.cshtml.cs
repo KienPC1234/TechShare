@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 namespace LoginSystem.Pages
 {
     [Authorize(Roles = "SuperAdmin")]
+    [ValidateAntiForgeryToken]
     public class DashboardModel : PageModel
     {
         private readonly ApplicationDbContext _dbContext;
@@ -125,14 +126,17 @@ namespace LoginSystem.Pages
                     .ToListAsync();
 
                 // Item Reports
-                var itemReportsQuery = _dbContext.ItemReports.AsQueryable();
+                var itemReportsQuery = _dbContext.ItemReports
+                    .Include(r => r.Item)
+                    .AsQueryable();
                 if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
                     itemReportsQuery = itemReportsQuery.Where(r =>
                         r.ItemId.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-                        r.Reason.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+                        r.Reason.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                        (r.Item != null && r.Item.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)));
                 }
-                itemReportsQuery = ApplyReportSorting(itemReportsQuery, SortColumn, SortDirection);
+                itemReportsQuery = ApplyItemReportSorting(itemReportsQuery, SortColumn, SortDirection);
                 TotalItemReports = await itemReportsQuery.CountAsync();
                 TotalItemReportPages = (int)Math.Ceiling(TotalItemReports / (double)PageSize);
                 ItemReports = await itemReportsQuery
@@ -150,7 +154,6 @@ namespace LoginSystem.Pages
             }
         }
 
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> OnPostActionAsync(
             [FromForm] string id,
             [FromForm] string action,
@@ -334,7 +337,6 @@ namespace LoginSystem.Pages
 
                     if (action == "delete")
                     {
-                        // Xóa bình luận của tin tức trước
                         _dbContext.OrganizationNewsComments.RemoveRange(
                             _dbContext.OrganizationNewsComments.Where(nc =>
                                 _dbContext.OrganizationNews
@@ -343,11 +345,9 @@ namespace LoginSystem.Pages
                                     .Contains(nc.NewsId)
                             )
                         );
-                        // Xóa tin tức của tổ chức
                         _dbContext.OrganizationNews.RemoveRange(
                             _dbContext.OrganizationNews.Where(n => n.OrganizationId == id)
                         );
-                        // Code hiện có
                         _dbContext.OrganizationMembers.RemoveRange(_dbContext.OrganizationMembers.Where(m => m.OrganizationId == id));
                         _dbContext.OrganizationJoinRequests.RemoveRange(_dbContext.OrganizationJoinRequests.Where(r => r.OrganizationId == id));
                         _dbContext.OrganizationComments.RemoveRange(_dbContext.OrganizationComments.Where(c => c.OrganizationId == id));
@@ -384,6 +384,41 @@ namespace LoginSystem.Pages
                     else
                     {
                         _logger.LogWarning("Unsupported item report action: {Action}", action);
+                        TempData["ErrorMessage"] = "Hành động không được hỗ trợ.";
+                    }
+                }
+                else if (entityType == "item")
+                {
+                    var item = await _dbContext.ExchangeItems.FindAsync(id);
+                    if (item == null)
+                    {
+                        _logger.LogWarning("Item not found: id={Id}", id);
+                        TempData["ErrorMessage"] = "Không tìm thấy vật phẩm.";
+                        return RedirectToPage(new { pageIndex, searchTerm, pageSize });
+                    }
+
+                    if (action == "deleteItem")
+                    {
+                        if (!User.IsInRole("SuperAdmin"))
+                        {
+                            _logger.LogWarning("Unauthorized item delete attempt by user {UserId}", _userManager.GetUserId(User));
+                            TempData["ErrorMessage"] = "Bạn không có quyền xóa vật phẩm.";
+                            return RedirectToPage(new { pageIndex, searchTerm, pageSize });
+                        }
+
+                        _dbContext.ItemComments.RemoveRange(_dbContext.ItemComments.Where(c => c.ItemId == id));
+                        _dbContext.ItemMedia.RemoveRange(_dbContext.ItemMedia.Where(m => m.ItemId == id));
+                        _dbContext.ItemTags.RemoveRange(_dbContext.ItemTags.Where(t => t.ItemId == id));
+                        _dbContext.ItemReports.RemoveRange(_dbContext.ItemReports.Where(r => r.ItemId == id));
+                        _dbContext.ItemRatings.RemoveRange(_dbContext.ItemRatings.Where(r => r.ItemId == id));
+                        _dbContext.ExchangeItems.Remove(item);
+                        await _dbContext.SaveChangesAsync();
+                        _logger.LogInformation("Item deleted: id={Id}", id);
+                        TempData["SuccessMessage"] = "Xóa vật phẩm thành công.";
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Unsupported item action: {Action}", action);
                         TempData["ErrorMessage"] = "Hành động không được hỗ trợ.";
                     }
                 }
@@ -443,16 +478,19 @@ namespace LoginSystem.Pages
                 : query;
         }
 
-        private IQueryable<LoginSystem.Models.ItemReport> ApplyReportSorting(IQueryable<LoginSystem.Models.ItemReport> query, string? sortColumn, string? sortDirection)
+        private IQueryable<LoginSystem.Models.ItemReport> ApplyItemReportSorting(IQueryable<LoginSystem.Models.ItemReport> query, string? sortColumn, string? sortDirection)
         {
             if (string.IsNullOrEmpty(sortColumn) || string.IsNullOrEmpty(sortDirection))
                 return query;
 
             bool isAscending = sortDirection.Equals("asc", StringComparison.OrdinalIgnoreCase);
 
-            return sortColumn.ToLower() == "reportedat"
-                ? isAscending ? query.OrderBy(r => r.ReportedAt) : query.OrderByDescending(r => r.ReportedAt)
-                : query;
+            return sortColumn.ToLower() switch
+            {
+                "reportedat" => isAscending ? query.OrderBy(r => r.ReportedAt) : query.OrderByDescending(r => r.ReportedAt),
+                "itemtitle" => isAscending ? query.OrderBy(r => r.Item != null ? r.Item.Title : "") : query.OrderByDescending(r => r.Item != null ? r.Item.Title : ""),
+                _ => query
+            };
         }
     }
 }

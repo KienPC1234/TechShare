@@ -22,7 +22,10 @@
                 <!-- Hidden input for Item.Id -->
                 <input type="hidden" asp-for="Item.Id" />
                 <input type="hidden" asp-for="Item.OwnerId" />
-
+                @if (!Model.HasOrganization)
+                {
+                    <input type="hidden" asp-for="Item.IsPrivate" value="false" />
+                }
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="Item.Title" class="form-label fw-bold">Tiêu đề</label>
@@ -59,13 +62,16 @@
                         </select>
                         <span asp-validation-for="Item.CategoryId" class="text-danger"></span>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Item.IsPrivate" class="form-label fw-bold">Chỉ dành cho tổ chức</label>
-                        <div class="form-check">
-                            <input asp-for="Item.IsPrivate" class="form-check-input" type="checkbox" />
-                            <label class="form-check-label" for="Item_IsPrivate">Chỉ thành viên tổ chức có thể mượn</label>
+                    @if (Model.HasOrganization)
+                    {
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Item.IsPrivate" class="form-label fw-bold">Chỉ dành cho tổ chức</label>
+                            <div class="form-check">
+                                <input asp-for="Item.IsPrivate" class="form-check-input" type="checkbox" />
+                                <label class="form-check-label" for="Item_IsPrivate">Chỉ thành viên tổ chức có thể mượn</label>
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
 
                 <!-- Display current media with delete options -->

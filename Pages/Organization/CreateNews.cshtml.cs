@@ -6,6 +6,7 @@ using LoginSystem.Data;
 using LoginSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using LoginSystem.Security;
 
 namespace LoginSystem.Pages.Organization
 {
