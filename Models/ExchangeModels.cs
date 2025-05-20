@@ -37,7 +37,7 @@ namespace LoginSystem.Models
         public string? OrganizationId { get; set; }
 
         [Required(ErrorMessage = "Vui lòng chọn danh mục.")]
-        public string CategoryId { get; set; } = string.Empty;
+        public string? CategoryId { get; set; }
 
         public bool IsPrivate { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

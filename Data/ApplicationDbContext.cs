@@ -134,7 +134,7 @@ namespace LoginSystem.Data
                 .HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(n => n.AuthorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // OrganizationNewsComment - User
             builder.Entity<OrganizationNewsComment>()
@@ -150,20 +150,21 @@ namespace LoginSystem.Data
                 .HasOne(m => m.Item)
                 .WithMany(e => e.MediaItems)
                 .HasForeignKey(m => m.ItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             // ExchangeItem
             builder.Entity<ExchangeItem>()
                 .HasOne(e => e.Owner)
                 .WithMany()
                 .HasForeignKey(e => e.OwnerId)
+                .HasForeignKey(e => e.OwnerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<ExchangeItem>()
-                .HasOne(e => e.Category)
-                .WithMany()
-                .HasForeignKey(e => e.CategoryId)
-                .OnDelete(DeleteBehavior.SetNull);
+    .HasOne(e => e.Category)
+    .WithMany()
+    .HasForeignKey(e => e.CategoryId)
+    .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<ExchangeItem>()
                 .HasIndex(e => e.OwnerId);
@@ -179,7 +180,7 @@ namespace LoginSystem.Data
                 .HasOne(c => c.Item)
                 .WithMany()
                 .HasForeignKey(c => c.ItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<ItemComment>()
                 .HasOne(c => c.User)
@@ -197,7 +198,7 @@ namespace LoginSystem.Data
                 .HasOne(r => r.Item)
                 .WithMany()
                 .HasForeignKey(r => r.ItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<ItemRating>()
                 .HasOne(r => r.User)
@@ -213,7 +214,7 @@ namespace LoginSystem.Data
                 .HasOne(r => r.Item)
                 .WithMany(i => i.Reports)
                 .HasForeignKey(r => r.ItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<ItemReport>()
                 .HasOne(r => r.User)
@@ -231,7 +232,7 @@ namespace LoginSystem.Data
                 .HasOne(o => o.Item)
                 .WithMany()
                 .HasForeignKey(o => o.ItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+               .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<BorrowOrder>()
                 .HasOne(o => o.Borrower)
@@ -243,7 +244,7 @@ namespace LoginSystem.Data
                 .HasOne(o => o.DeliveryAgent)
                 .WithMany()
                 .HasForeignKey(o => o.DeliveryAgentId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<BorrowOrder>()
                 .HasIndex(o => o.ItemId);
@@ -289,13 +290,13 @@ namespace LoginSystem.Data
                 .HasOne(m => m.Sender)
                 .WithMany()
                 .HasForeignKey(m => m.SenderId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<Message>()
                 .HasOne(m => m.Receiver)
                 .WithMany()
                 .HasForeignKey(m => m.ReceiverId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // OrderStatusHistory
             builder.Entity<OrderStatusHistory>()

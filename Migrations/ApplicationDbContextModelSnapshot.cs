@@ -885,12 +885,12 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ApplicationUser", "DeliveryAgent")
                         .WithMany()
                         .HasForeignKey("DeliveryAgentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Borrower");
@@ -905,7 +905,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ItemCategory", "Category")
                         .WithMany()
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.Organization", null)
@@ -929,7 +929,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.ApplicationUser", "User")
@@ -948,7 +948,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany("MediaItems")
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Item");
@@ -959,7 +959,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.ApplicationUser", "User")
@@ -978,7 +978,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ExchangeItem", "Item")
                         .WithMany("Reports")
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.ApplicationUser", "User")
@@ -1008,13 +1008,13 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ApplicationUser", "Receiver")
                         .WithMany()
                         .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.ApplicationUser", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Receiver");
@@ -1072,7 +1072,7 @@ namespace TechShare.Migrations
                     b.HasOne("LoginSystem.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("LoginSystem.Models.Organization", null)

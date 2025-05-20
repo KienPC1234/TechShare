@@ -8,6 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using LoginSystem.Security;
 
 namespace LoginSystem.Controllers
 {
@@ -20,15 +21,18 @@ namespace LoginSystem.Controllers
         private readonly MailToolBox _mailToolBox;
         private readonly ILogger<ForgotPasswordController> _logger;
         private readonly IMemoryCache _cache;
+        private readonly IRecaptchaService _recaptcha;
         private const int RESET_TOKEN_VALIDITY_MINUTES = 30;
 
         public ForgotPasswordController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             MailToolBox mailToolBox,
+            IRecaptchaService recaptcha,
             ILogger<ForgotPasswordController> logger,
             IMemoryCache cache)
         {
+            _recaptcha = recaptcha;
             _userManager = userManager;
             _signInManager = signInManager;
             _mailToolBox = mailToolBox;
@@ -41,6 +45,9 @@ namespace LoginSystem.Controllers
             [Required(ErrorMessage = "Email là bắt buộc")]
             [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
             public string Email { get; set; }
+
+            [Required(ErrorMessage = "Recaptcha là bắt buộc")]
+            public string RecaptchaToken { get; set; }
         }
 
         public class CodeInputModel
@@ -79,6 +86,9 @@ namespace LoginSystem.Controllers
         [HttpPost("send-code")]
         public async Task<IActionResult> SendCode([FromBody] EmailInputModel model)
         {
+            if (!await _recaptcha.VerifyAsync(model.RecaptchaToken))
+                return BadRequest(new { error = "Recaptcha failed" });
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.ToDictionary(

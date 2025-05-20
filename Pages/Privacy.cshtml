@@ -1,8 +1,296 @@
 ﻿@page
 @model PrivacyModel
 @{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Chính Sách Bảo Mật";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<style>
+    /* CSS cho trang Privacy Policy */
+    header{
+        zoom:0.9
+    }
+
+    ul {
+        margin-top:10px
+    }
+    body {
+        background-color: #f4f7fa;
+        color: #333;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+    }
+
+    .privacy-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    h1 {
+        text-align: center;
+        color: #2c3e50;
+        font-size: 2.8em;
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    h1::after {
+        content: '';
+        width: 80px;
+        height: 5px;
+        background-color: #3498db;
+        position: absolute;
+        bottom: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    h2 {
+        color: #2c3e50;
+        font-size: 1.9em;
+        margin-top: 35px;
+        margin-bottom: 15px;
+        border-left: 5px solid #3498db;
+        padding-left: 12px;
+    }
+
+    h3 {
+        color: #34495e;
+        font-size: 1.5em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+
+    p {
+        margin-bottom: 15px;
+        font-size: 1.1em;
+    }
+
+    ul {
+        list-style-type: disc;
+        padding-left: 25px;
+        margin-bottom: 20px;
+    }
+
+    li {
+        margin-bottom: 12px;
+        font-size: 1.1em;
+    }
+
+    .highlight {
+        background-color: #e8f4f8;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .highlight:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .contact-info {
+        text-align: center;
+        margin-top: 50px;
+        font-size: 1.2em;
+        color: #555;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+    }
+
+    .contact-info a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .contact-info a:hover {
+        color: #2980b9;
+        text-decoration: underline;
+    }
+
+    .section-divider {
+        border-top: 1px solid #e0e0e0;
+        margin: 30px 0;
+    }
+
+    /* Animation keyframes */
+    @@keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @@media (max-width: 600px) {
+        .privacy-container {
+            margin: 20px;
+            padding: 15px;
+        }
+
+        h1 {
+            font-size: 2.2em;
+        }
+
+        h2 {
+            font-size: 1.6em;
+        }
+
+        h3 {
+            font-size: 1.3em;
+        }
+
+        p, li {
+            font-size: 1em;
+        }
+
+        .contact-info {
+            font-size: 1em;
+        }
+    }
+</style>
+
+<div class="privacy-container">
+    <h1>@ViewData["Title"]</h1>
+
+    <div class="highlight">
+        <p>
+            Chào mừng bạn đến với <strong>TechShare</strong>, dự án hỗ trợ tái sử dụng và chuyển giao thiết bị công nghệ tại khu vực Thạch Thất. Chính sách bảo mật này được thiết kế để bảo vệ thông tin của các trường học, nhà tài trợ và đối tác tham gia, đảm bảo tuân thủ các quy định pháp luật Việt Nam, bao gồm Luật An ninh mạng 2018 và Nghị định 117/2018/NĐ-CP về bảo vệ dữ liệu cá nhân. Chúng tôi cam kết minh bạch, bảo vệ quyền riêng tư và ngăn chặn mọi hành vi lạm dụng hệ thống.
+        </p>
+    </div>
+
+    <h2>1. Thông Tin Thu Thập</h2>
+    <h3>1.1. Thông Tin Cá Nhân và Tổ Chức</h3>
+    <p>Để vận hành hệ thống TechShare, chúng tôi thu thập các thông tin sau:</p>
+    <ul>
+        <li><strong>Thông tin trường học</strong>: Tên trường, địa chỉ, email, số điện thoại, mã số thuế hoặc giấy phép hoạt động để xác thực tài khoản.</li>
+        <li><strong>Thông tin người đại diện</strong>: Họ tên, chức vụ, thông tin liên hệ của người đại diện trường học hoặc tổ chức.</li>
+        <li><strong>Thông tin thiết bị</strong>: Loại thiết bị (máy tính, laptop, linh kiện robot, phần mềm), tình trạng, số lượng, hình ảnh và mô tả chi tiết.</li>
+        <li><strong>Thông tin giao dịch</strong>: Lịch sử yêu cầu nhận/mượn thiết bị, trạng thái giao dịch, thời gian và địa điểm chuyển giao.</li>
+        <li><strong>Dữ liệu kỹ thuật</strong>: Địa chỉ IP, loại trình duyệt, thời gian truy cập, và cookie để phân tích và cải thiện trải nghiệm người dùng.</li>
+    </ul>
+    <h3>1.2. Thông Tin Tự Động Thu Thập</h3>
+    <p>
+        Hệ thống tự động ghi nhận một số dữ liệu kỹ thuật như thông tin thiết bị, thời gian truy cập và hành vi sử dụng để đảm bảo an toàn và tối ưu hóa dịch vụ. Cookie được sử dụng để lưu trữ tùy chọn người dùng và không chứa thông tin cá nhân nhạy cảm.
+    </p>
+
+    <div class="section-divider"></div>
+
+    <h2>2. Mục Đích Sử Dụng Thông Tin</h2>
+    <p>Chúng tôi sử dụng thông tin thu thập được để:</p>
+    <ul>
+        <li>Xác thực và quản lý tài khoản của các trường học và đối tác.</li>
+        <li>Hỗ trợ kết nối giữa các trường cung cấp và trường cần thiết bị, đảm bảo quá trình chuyển giao/mượn thiết bị minh bạch.</li>
+        <li>Gửi thông báo tự động qua email hoặc tin nhắn SMS về trạng thái giao dịch, cập nhật hệ thống hoặc báo cáo định kỳ.</li>
+        <li>Phân tích dữ liệu để cải thiện tính năng, tối ưu hóa hiệu suất website và phát triển các dịch vụ mới.</li>
+        <li>Đảm bảo tuân thủ pháp luật và hỗ trợ cơ quan chức năng khi cần thiết.</li>
+    </ul>
+
+    <div class="section-divider"></div>
+
+    <h2>3. Chia Sẻ và Tiết Lộ Thông Tin</h2>
+    <h3>3.1. Nguyên Tắc Chia Sẻ</h3>
+    <p>Chúng tôi cam kết:</p>
+    <ul>
+        <li>Không bán, trao đổi, hoặc chuyển giao thông tin cá nhân cho bất kỳ bên thứ ba nào không liên quan đến dự án, trừ khi có sự đồng ý rõ ràng của bạn hoặc theo yêu cầu pháp luật.</li>
+        <li>Chỉ chia sẻ thông tin công khai cần thiết (như danh sách thiết bị, thông tin liên hệ công cộng của trường) giữa các trường học và đối tác trong hệ thống để hỗ trợ giao dịch.</li>
+        <li>Sử dụng các nhà cung cấp dịch vụ đáng tin cậy (như dịch vụ email, lưu trữ đám mây) tuân thủ các tiêu chuẩn bảo mật quốc tế.</li>
+    </ul>
+    <h3>3.2. Trường Hợp Bắt Buộc</h3>
+    <p>Thông tin có thể được tiết lộ trong các trường hợp sau:</p>
+    <ul>
+        <li>Tuân thủ lệnh của tòa án, cơ quan quản lý nhà nước hoặc các yêu cầu pháp lý.</li>
+        <li>Ngăn chặn hoặc điều tra các hành vi vi phạm pháp luật, gian lận hoặc lạm dụng hệ thống.</li>
+        <li>Bảo vệ quyền lợi hợp pháp của TechShare hoặc người dùng khác.</li>
+    </ul>
+
+    <div class="section-divider"></div>
+
+    <h2>4. Bảo Mật Thông Tin</h2>
+    <p>Chúng tôi áp dụng các biện pháp bảo mật tiên tiến để bảo vệ thông tin người dùng:</p>
+    <ul>
+        <li><strong>Mã hóa dữ liệu</strong>: Sử dụng giao thức HTTPS (TLS 1.3) và mã hóa AES-256 để bảo vệ dữ liệu truyền tải và lưu trữ.</li>
+        <li><strong>Xác thực đa yếu tố (MFA)</strong>: Yêu cầu xác minh qua email và/hoặc SMS để bảo vệ tài khoản.</li>
+        <li><strong>Cơ sở dữ liệu an toàn</strong>: Lưu trữ trên các hệ thống cơ sở dữ liệu (MySQL/PostgreSQL/MongoDB) với kiểm soát truy cập nghiêm ngặt.</li>
+        <li><strong>Giám sát và kiểm tra</strong>: Thực hiện kiểm tra bảo mật định kỳ, phát hiện và ngăn chặn các cuộc tấn công mạng như SQL Injection, XSS, hoặc DDoS.</li>
+        <li><strong>Quản lý cookie</strong>: Cookie chỉ được sử dụng cho mục đích kỹ thuật và có thể bị vô hiệu hóa bởi người dùng mà không ảnh hưởng đến chức năng chính của website.</li>
+    </ul>
+
+    <div class="section-divider"></div>
+
+    <h2>5. Quyền Lợi của Người Dùng</h2>
+    <p>Theo quy định pháp luật Việt Nam, bạn có các quyền sau:</p>
+    <ul>
+        <li><strong>Truy cập</strong>: Yêu cầu xem toàn bộ thông tin cá nhân mà chúng tôi lưu trữ về bạn.</li>
+        <li><strong>Chỉnh sửa</strong>: Yêu cầu sửa đổi thông tin không chính xác hoặc lỗi thời.</li>
+        <li><strong>Xóa</strong>: Yêu cầu xóa thông tin cá nhân khi không còn cần thiết, trừ khi pháp luật yêu cầu lưu giữ.</li>
+        <li><strong>Hạn chế xử lý</strong>: Yêu cầu tạm dừng xử lý thông tin trong một số trường hợp cụ thể.</li>
+        <li><strong>Phản đối</strong>: Từ chối nhận thông báo hoặc email quảng cáo không cần thiết.</li>
+        <li><strong>Khiếu nại</strong>: Nộp đơn khiếu nại nếu nghi ngờ thông tin bị lạm dụng hoặc vi phạm quyền riêng tư.</li>
+    </ul>
+    <p>Để thực hiện các quyền trên, vui lòng liên hệ qua <a href="mailto:kienpc872009@gmail.com">kienpc872009@gmail.com</a>. Chúng tôi sẽ phản hồi trong vòng 7 ngày làm việc.</p>
+
+    <div class="section-divider"></div>
+
+    <h2>6. Tuân Thủ Pháp Luật</h2>
+    <p>
+        TechShare cam kết tuân thủ các quy định pháp luật Việt Nam, bao gồm nhưng không giới hạn:
+    </p>
+    <ul>
+        <li><strong>Luật An ninh mạng 2018</strong>: Đảm bảo an toàn thông tin mạng và bảo vệ dữ liệu cá nhân.</li>
+        <li><strong>Nghị định 117/2018/NĐ-CP</strong>: Quy định về bảo vệ dữ liệu cá nhân trong lĩnh vực công nghệ thông tin.</li>
+        <li><strong>Luật Giao dịch điện tử 2005</strong>: Đảm bảo tính hợp pháp của các giao dịch trực tuyến trên hệ thống.</li>
+    </ul>
+    <p>
+        Chúng tôi hợp tác với cơ quan chức năng khi cần thiết để điều tra các hành vi vi phạm pháp luật hoặc lạm dụng hệ thống, đồng thời đảm bảo mọi hoạt động trên website đều minh bạch và hợp pháp.
+    </p>
+
+    <div class="section-divider"></div>
+
+    <h2>7. Chính Sách Chống Lạm Dụng</h2>
+    <p>Để ngăn chặn lạm dụng hệ thống và bảo vệ quyền lợi của tất cả người dùng, chúng tôi áp dụng các biện pháp sau:</p>
+    <ul>
+        <li><strong>Xác minh thông tin</strong>: Mọi tài khoản và thiết bị đăng tải phải được xác thực để đảm bảo tính chính xác.</li>
+        <li><strong>Giám sát giao dịch</strong>: Sử dụng hệ thống tự động để phát hiện các hành vi bất thường, như đăng tải thông tin sai lệch hoặc yêu cầu không hợp lệ.</li>
+        <li><strong>Chế tài vi phạm</strong>: Tài khoản vi phạm (như cung cấp thông tin giả mạo, sử dụng thiết bị sai mục đích, hoặc không hoàn trả thiết bị mượn) sẽ bị đình chỉ hoặc xóa vĩnh viễn.</li>
+        <li><strong>Báo cáo vi phạm</strong>: Người dùng có thể báo cáo các hành vi lạm dụng qua hệ thống tin nhắn hoặc email hỗ trợ.</li>
+        <li><strong>Hợp đồng mượn thiết bị</strong>: Mọi giao dịch mượn thiết bị phải đi kèm thỏa thuận rõ ràng, bao gồm điều khoản về trách nhiệm bồi thường nếu thiết bị bị hư hỏng hoặc không được hoàn trả đúng hạn.</li>
+    </ul>
+
+    <div class="section-divider"></div>
+
+    <h2>8. Dữ Liệu Trẻ Em</h2>
+    <p>
+        TechShare không thu thập hoặc xử lý thông tin cá nhân của trẻ em dưới 16 tuổi mà không có sự đồng ý của phụ huynh hoặc người giám hộ hợp pháp, theo quy định tại Điều 16 Nghị định 117/2018/NĐ-CP. Các trường học tham gia cần đảm bảo rằng người đại diện cung cấp thông tin là người có thẩm quyền hợp pháp.
+    </p>
+
+    <div class="section-divider"></div>
+
+    <h2>9. Cập Nhật Chính Sách</h2>
+    <p>
+        Chính sách bảo mật này có thể được cập nhật định kỳ để phù hợp với quy định pháp luật hoặc cải tiến hệ thống. Mọi thay đổi sẽ được thông báo qua email, tin nhắn SMS, hoặc trên trang chủ của website ít nhất 7 ngày trước khi có hiệu lực. Người dùng nên thường xuyên kiểm tra chính sách để nắm bắt các cập nhật mới nhất.
+    </p>
+
+    <div class="section-divider"></div>
+
+    <h2>10. Giải Quyết Tranh Chấp</h2>
+    <p>
+        Mọi tranh chấp phát sinh từ việc sử dụng website hoặc liên quan đến chính sách bảo mật sẽ được giải quyết thông qua thương lượng. Nếu không đạt được thỏa thuận, tranh chấp sẽ được đưa ra Tòa án có thẩm quyền tại Hà Nội, Việt Nam, theo quy định pháp luật hiện hành.
+    </p>
+
+    <div class="contact-info">
+        <p>
+            Nếu bạn có câu hỏi, khiếu nại hoặc cần hỗ trợ, vui lòng liên hệ qua:<br>
+            <strong>Email</strong>: <a href="mailto:kienpc872009@gmail.com">kienpc872009@gmail.com</a><br>
+            <strong>Số điện thoại</strong>: (+84) 978 589 220<br>
+            <strong>Địa chỉ</strong>: Khu vực Thạch Thất, Hà Nội, Việt Nam<br>
+            Chúng tôi cam kết phản hồi trong vòng 7 ngày làm việc.
+        </p>
+    </div>
+</div>

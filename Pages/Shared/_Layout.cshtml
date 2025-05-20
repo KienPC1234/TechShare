@@ -6,34 +6,95 @@
 @inject ApplicationDbContext DbContext
 <!DOCTYPE html>
 <html lang="vi">
+
+@{
+    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    string slug = null;
+
+    if (userId != null)
+    {
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user?.OrganizationId != null)
+        {
+            slug = await GetOrgSlug(user.OrganizationId); // GetOrgSlug vẫn dùng OrganizationId từ user DB
+        }
+    }
+}
+
 <head>
-    <!-- ========== Cơ bản & SEO ========== -->
-    <meta charset="utf-8" />
+    <!-- ========== SEO Cơ bản ========== -->
+    <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@(ViewData["Title"] ?? "TechShare") – TechShare</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "TechShare – Kết nối & Tái sử dụng Thiết bị Công nghệ")</title>
 
-    <meta name="description" content="TechShare – Nền tảng chia sẻ, mượn và tái sử dụng thiết bị CNTT & Robotics cho các trường khu vực Thạch Thất." />
-    <meta name="keywords" content="TechShare, chia sẻ thiết bị, tái sử dụng laptop, robot, linh kiện, Thạch Thất, giáo dục" />
+    <!-- Meta Description: Ngắn gọn, hấp dẫn, chứa từ khóa chính -->
+    <meta name="description" content="TechShare kết nối trường học tại Thạch Thất để chia sẻ, tái sử dụng thiết bị công nghệ như laptop, robot giáo dục, thúc đẩy STEM và tiết kiệm tài nguyên." />
+
+    <!-- Meta Keywords: Tập trung từ khóa liên quan, không quá dài -->
+    <meta name="keywords" content="TechShare, chia sẻ thiết bị công nghệ, tái sử dụng laptop, robot giáo dục, giáo dục STEM, trường học Thạch Thất, CNTT học đường" />
+
+    <!-- Meta Author -->
     <meta name="author" content="TechShare Team" />
-    <link rel="canonical" href="@Context.Request.Scheme://@Context.Request.Host@Context.Request.Path" />
-    <meta name="robots" content="index,follow" />
 
-    <!-- OpenGraph / Twitter -->
+    <!-- Robots: Tối ưu hóa lập chỉ mục và hiển thị -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+    <!-- ========== OpenGraph (Tăng khả năng hiển thị trên mạng xã hội) ========== -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="vi_VN" />
     <meta property="og:site_name" content="TechShare" />
-    <meta property="og:title" content="@(ViewData["Title"] ?? "TechShare")" />
-    <meta property="og:description" content="TechShare – Kết nối, chia sẻ, tái sử dụng thiết bị công nghệ giữa các trường học." />
-    <meta property="og:url" content="@Context.Request.Scheme://@Context.Request.Host@Context.Request.Path" />
-    <meta property="og:image" content="~/images/techshare-og-image.png" />
+    <meta property="og:title" content="@(ViewData["Title"] ?? "TechShare – Kết nối & Tái sử dụng Thiết bị Công nghệ")" />
+    <meta property="og:description" content="TechShare hỗ trợ trường học tại Thạch Thất chia sẻ, tái sử dụng laptop, robot giáo dục, tối ưu tài nguyên và thúc đẩy giáo dục STEM." />
+    <meta property="og:url" content="https://ts.fptoj.com/" />
+    <meta property="og:image" content="https://ts.fptoj.com/images/techshare-og-image.png" />
+    <meta property="og:image:secure_url" content="https://ts.fptoj.com/images/techshare-og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="TechShare – Nền tảng chia sẻ thiết bị công nghệ" />
 
+    <!-- ========== Twitter Card (Tối ưu hiển thị trên Twitter) ========== -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="@(ViewData["Title"] ?? "TechShare")" />
-    <meta name="twitter:description" content="TechShare – Kết nối, chia sẻ, tái sử dụng thiết bị công nghệ giữa các trường học." />
-    <meta name="twitter:image" content="~/images/techshare-og-image.png" />
+    <meta name="twitter:site" content="@@TechShareVN" />
+    <meta name="twitter:title" content="@(ViewData["Title"] ?? "TechShare – Kết nối & Tái sử dụng Thiết bị Công nghệ")" />
+    <meta name="twitter:description" content="TechShare giúp trường học Thạch Thất tái sử dụng thiết bị công nghệ, tiết kiệm tài nguyên, thúc đẩy giáo dục STEM." />
+    <meta name="twitter:image" content="https://ts.fptoj.com/images/techshare-og-image.png" />
+    <meta name="twitter:image:alt" content="TechShare – Nền tảng chia sẻ thiết bị công nghệ" />
 
-    <link rel="icon" type="image/png" href="~/icon.png" sizes="32x32" />
+    <!-- ========== Favicon (Hỗ trợ đa nền tảng) ========== -->
+    <link rel="icon" type="image/png" href="/icon.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icon.png" sizes="180x180" />
+
+    <script type="application/ld+json">
+        {
+          "@@context": "https://schema.org",
+          "@@type": "WebSite",
+          "name": "TechShare",
+          "url": "https://ts.fptoj.com/",
+          "description": "TechShare là nền tảng kết nối và chia sẻ thiết bị công nghệ, robot giáo dục giữa các trường học tại Thạch Thất, thúc đẩy giáo dục STEM.",
+          "publisher": {
+            "@@type": "Organization",
+            "name": "TechShare Team",
+            "logo": {
+              "@@type": "ImageObject",
+              "url": "https://ts.fptoj.com/images/logo.png"
+            }
+          },
+          "potentialAction": [
+            {
+              "@@type": "SearchAction",
+              "target": "https://ts.fptoj.com/Exchange/Search?Query={search_term_string}",
+              "query-input": "required name=search_term_string"
+            },
+            {
+              "@@type": "SearchAction",
+              "target": "https://ts.fptoj.com/Organization/Search?SearchTerm={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          ]
+        }
+    </script>
+
 
     <!-- ========== CSS & Assets ========== -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
@@ -159,7 +220,7 @@
         }
 
         .nav-item{
-            margin-top:5px;
+            margin-top:4px;
         }
         /* === Nav brand & links === */
         .navbar-brand span {
@@ -296,11 +357,11 @@
                             <li class="nav-item"><a class="nav-link" asp-page="/Exchange/ManageItems">Quản Lý Mặt Hàng</a></li>
                             <li class="nav-item"><a class="nav-link" asp-page="/Chat">Tin Nhắn</a></li>
                             <li class="nav-item"><a class="nav-link" asp-page="/Exchange/UserActivity">Hoạt Động Của Tôi</a></li>
-                            @if (User.FindFirst("OrganizationId")?.Value != null)
+
+                            @if (slug != null)
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link" asp-page="/Organization/Details"
-                                       asp-route-slug="@(await GetOrgSlug(User.FindFirst("OrganizationId")?.Value))">
+                                    <a class="nav-link" asp-page="/Organization/Details" asp-route-slug="@slug">
                                         Tổ Chức Của Tôi
                                     </a>
                                 </li>
@@ -466,7 +527,10 @@
 
     <!-- ========== FOOTER ========== -->
     <footer class="bg-light py-3 text-center">
-        <small>© @DateTime.Now.Year TechShare. Tất cả quyền được bảo lưu.</small>
+        <small>
+            © @DateTime.Now.Year TechShare. Tất cả quyền được bảo lưu. |
+            <a href="/Privacy" class="text-decoration-none link-secondary">Chính sách bảo mật</a>
+        </small>
     </footer>
 
     <!-- ========== JS ========== -->

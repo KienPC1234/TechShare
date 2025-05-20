@@ -42,14 +42,18 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 SMTP_SSL=false
 API_KEY=your_api_key
+ENCRYPTION_AES_KEY=your_aes_key
+ENCRYPTION_AES_IV=your_aes_iv
+RECAPTCHA_SITE_KEY=Your_RECAPTCHA_Site_Key
+RECAPTCHA_SECRET_KEY=Your_RECAPTCHA_Secret_Key
 ";
 
                 File.WriteAllText(envPath, defaultContent);
-                Console.WriteLine("Tạo file .env mặc định tại {0}. Vui lòng cập nhật SMTP_USER và SMTP_PASS.", envPath);
+                Console.WriteLine("Fill env in: {0}", envPath);
             }
 
             Env.Load(envPath);
-            Console.WriteLine("Đã tải file .env từ {0}", envPath);
+            Console.WriteLine("Env file loaded in {0}", envPath);
         }
 
         public EmailStatus SendEmail(string toEmail, string subject, string htmlBody)

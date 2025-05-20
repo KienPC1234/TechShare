@@ -6,19 +6,14 @@
     Layout = "_Layout";
 }
 
-
 <style>
     body {
-        font-family: 'Poppins', sans-serif;
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        zoom:0.9
     }
 
     .register-section {
         padding: 60px 0;
+        width: 100%;
     }
 
     .register-container {
@@ -26,16 +21,45 @@
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         padding: 40px;
-        transition: transform 0.3s ease;
+        max-width: 500px;
+        margin: 0 auto;
+        animation: fadeIn 0.5s ease-out;
     }
 
-        .register-container:hover {
-            transform: translateY(-5px);
-        }
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
 
     h1 {
         font-weight: 600;
         color: #2c3e50;
+        animation: slideIn 0.5s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from
+
+    {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
     }
 
     .form-label {
@@ -47,7 +71,8 @@
         border: 2px solid #e0e0e0;
         border-radius: 10px;
         padding: 12px;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        padding-right: 40px; /* Space for eye icon */
+        transition: all 0.3s ease;
     }
 
         .form-control:focus {
@@ -63,12 +88,29 @@
         padding: 14px;
         font-weight: 500;
         text-transform: uppercase;
-        transition: background 0.3s ease, transform 0.2s ease;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
 
         .btn-primary:hover {
-            background: linear-gradient(45deg, #2980b9, #3498db);
             transform: translateY(-2px);
+            background: linear-gradient(45deg, #2980b9, #3498db);
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient( 90deg, transparent, rgba(255, 255, 255, 0.2), transparent );
+            transition: 0.5s;
+        }
+
+        .btn-primary:hover::after {
+            left: 100%;
         }
 
     .avatar-preview-container {
@@ -79,7 +121,12 @@
         border-radius: 50%;
         overflow: hidden;
         background: #f0f0f0;
+        transition: transform 0.3s ease;
     }
+
+        .avatar-preview-container:hover {
+            transform: scale(1.05);
+        }
 
     .avatar-preview {
         width: 100%;
@@ -92,9 +139,11 @@
         color: #3498db;
         text-decoration: none;
         font-weight: 500;
+        transition: color 0.3s ease;
     }
 
         .login-link a:hover {
+            color: #2980b9;
             text-decoration: underline;
         }
 
@@ -103,6 +152,24 @@
         background: #ffebee;
         color: #c0392b;
         font-size: 14px;
+        animation: shake 0.5s;
+    }
+
+    @@keyframes shake {
+        0%, 100%
+
+    {
+        transform: translateX(0);
+    }
+
+    25%, 75% {
+        transform: translateX(-5px);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
     }
 
     .text-danger {
@@ -110,6 +177,40 @@
         margin-top: 5px;
         display: block;
     }
+
+    .captcha-container {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+    }
+
+    .password-container {
+        position: relative;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 70%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #666;
+        font-size: 16px;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        background: #f0f0f0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .password-toggle:hover {
+            color: #3498db;
+            background: #e0e0e0;
+        }
 
     @@media (max-width: 576px) {
         .register-container
@@ -126,122 +227,148 @@
 </style>
 
 <section class="register-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="register-container">
-                    <h1 class="mb-5 text-center">Đăng ký tài khoản</h1>
-                    @if (!ModelState.IsValid && ModelState.ContainsKey(string.Empty))
-                    {
-                        <div class="alert alert-danger" role="alert">
-                            @foreach (var error in ModelState[string.Empty].Errors)
-                            {
-                                <p class="mb-0">@error.ErrorMessage</p>
-                            }
-                        </div>
-                    }
-                    <form method="post" enctype="multipart/form-data" id="registerForm">
-                        <div class="form-group mb-4">
-                            <label asp-for="Input.Username" class="form-label">Tên người dùng</label>
-                            <input asp-for="Input.Username" class="form-control" placeholder="Nhập tên người dùng" />
-                            <span asp-validation-for="Input.Username" class="text-danger"></span>
-                        </div>
-                        <div class="form-group mb-4">
-                            <label asp-for="Input.DisplayName" class="form-label">Tên hiển thị</label>
-                            <input asp-for="Input.DisplayName" class="form-control" placeholder="Nhập tên hiển thị" />
-                            <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
-                        </div>
-                        <div class="form-group mb-4">
-                            <label asp-for="Input.Email" class="form-label">Email</label>
-                            <input asp-for="Input.Email" class="form-control" placeholder="Nhập email" />
-                            <span asp-validation-for="Input.Email" class="text-danger"></span>
-                        </div>
-                        <div class="form-group mb-4">
-                            <label asp-for="Input.Password" class="form-label">Mật khẩu</label>
-                            <input asp-for="Input.Password" class="form-control" placeholder="Nhập mật khẩu" />
-                            <span asp-validation-for="Input.Password" class="text-danger"></span>
-                        </div>
-                        <div class="form-group mb-4">
-                            <label asp-for="Input.ConfirmPassword" class="form-label">Xác nhận mật khẩu</label>
-                            <input asp-for="Input.ConfirmPassword" class="form-control" placeholder="Xác nhận mật khẩu" />
-                            <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
-                        </div>
-                        <div class="form-group mb-4">
-                            <label for="avatar" class="form-label">Ảnh đại diện (Tùy chọn)</label>
-                            <input type="file" id="avatar" class="form-control" accept="image/*" />
-                            <div class="avatar-preview-container">
-                                <img id="avatarPreview" class="avatar-preview" alt="Xem trước ảnh đại diện" />
-                            </div>
-                            <input type="hidden" asp-for="Input.AvatarRequest" id="avatarRequest" value="No Avatar" />
-                            <span class="text-danger" id="avatarError"></span>
-                        </div>
-                        @Html.RenderCaptchaV2()
-                        <button type="submit" class="btn btn-primary w-100">Đăng ký</button>
-                    </form>
-                    <div class="login-link mt-4 text-center">
-                        <p>Đã có tài khoản? <a href="/Login" class="fw-bold">Đăng nhập</a></p>
-                    </div>
-                </div>
+    <div class="register-container">
+        <h1 class="mb-5 text-center">Đăng ký tài khoản</h1>
+        @if (!ModelState.IsValid && ModelState.ContainsKey(string.Empty))
+        {
+            <div class="alert alert-danger" role="alert">
+                @foreach (var error in ModelState[string.Empty].Errors)
+                {
+                    <p class="mb-0">@error.ErrorMessage</p>
+                }
             </div>
+        }
+        <form method="post" enctype="multipart/form-data" id="registerForm">
+            <div class="form-group mb-4">
+                <label asp-for="Input.Username" class="form-label">Tên người dùng</label>
+                <input asp-for="Input.Username" class="form-control" placeholder="Nhập tên người dùng" />
+                <span asp-validation-for="Input.Username" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-4">
+                <label asp-for="Input.DisplayName" class="form-label">Tên hiển thị</label>
+                <input asp-for="Input.DisplayName" class="form-control" placeholder="Nhập tên hiển thị" />
+                <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-4">
+                <label asp-for="Input.Email" class="form-label">Email</label>
+                <input asp-for="Input.Email" class="form-control" placeholder="Nhập email" />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-4 password-container">
+                <label asp-for="Input.Password" class="form-label">Mật khẩu</label>
+                <input asp-for="Input.Password" class="form-control" placeholder="Nhập mật khẩu" type="password" id="password" />
+                <i class="fas fa-eye password-toggle" id="togglePassword"></i>
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-4 password-container">
+                <label asp-for="Input.ConfirmPassword" class="form-label">Xác nhận mật khẩu</label>
+                <input asp-for="Input.ConfirmPassword" class="form-control" placeholder="Xác nhận mật khẩu" type="password" id="confirmPassword" />
+                <i class="fas fa-eye password-toggle" id="toggleConfirmPassword"></i>
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-4">
+                <label for="avatar" class="form-label">Ảnh đại diện (Tùy chọn)</label>
+                <input type="file" id="avatar" class="form-control" accept="image/png,image/jpeg" />
+                <div class="avatar-preview-container">
+                    <img id="avatarPreview" class="avatar-preview" alt="Xem trước ảnh đại diện" />
+                </div>
+                <input type="hidden" asp-for="Input.AvatarRequest" id="avatarRequest" value="No Avatar" />
+                <span class="text-danger" id="avatarError"></span>
+            </div>
+            <div class="captcha-container">
+                @Html.RenderCaptchaV2()
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Đăng ký</button>
+        </form>
+        <div class="login-link mt-4 text-center">
+            <p>Đã có tài khoản? <a href="/Login" class="fw-bold">Đăng nhập</a></p>
         </div>
     </div>
 </section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
-        $(document).ready(function () {
-            $('#avatar').change(function () {
-                var file = this.files[0];
+        document.addEventListener('DOMContentLoaded', function () {
+            // Password toggle functionality
+            const togglePassword = document.getElementById('togglePassword');
+            const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirmPassword');
+
+            togglePassword.addEventListener('click', function () {
+                const type = password.type === 'password' ? 'text' : 'password';
+                password.type = type;
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
+
+            toggleConfirmPassword.addEventListener('click', function () {
+                const type = confirmPassword.type === 'password' ? 'text' : 'password';
+                confirmPassword.type = type;
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
+
+            // Avatar upload functionality
+            const avatarInput = document.getElementById('avatar');
+            const avatarPreview = document.getElementById('avatarPreview');
+            const avatarRequest = document.getElementById('avatarRequest');
+            const avatarError = document.getElementById('avatarError');
+
+            avatarInput.addEventListener('change', async function () {
+                const file = this.files[0];
                 if (!file) {
-                    $('#avatarPreview').hide();
-                    $('#avatarRequest').val('No Avatar');
+                    avatarPreview.style.display = 'none';
+                    avatarRequest.value = 'No Avatar';
+                    avatarError.textContent = '';
                     return;
                 }
 
                 // Preview avatar
-                var reader = new FileReader();
+                const reader = new FileReader();
                 reader.onload = function (e) {
-                    $('#avatarPreview').attr('src', e.target.result).show();
+                    avatarPreview.src = e.target.result;
+                    avatarPreview.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
 
-                var formData = new FormData();
+                // Upload avatar
+                const formData = new FormData();
                 formData.append('file', file);
 
-                $.ajax({
-                    url: '/api/auth/upload-avatar',
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    headers: {
-                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function (response) {
-                        if (response.success) {
-                            $('#avatarRequest').val(response.fileUrl);
-                            $('#avatarError').text('');
-                        } else {
-                            $('#avatarError').text(response.message);
-                            $('#avatarPreview').hide();
-                            $('#avatarRequest').val('No Avatar');
+                try {
+                    const response = await fetch('/api/auth/upload-avatar', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                         }
-                    },
-                    error: function (xhr) {
-                        var message = xhr.responseJSON?.message || 'Không thể tải lên ảnh đại diện.';
-                        $('#avatarError').text(message);
-                        $('#avatarPreview').hide();
-                        $('#avatarRequest').val('No Avatar');
-                        console.error('Lỗi tải lên:', message);
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        avatarRequest.value = result.fileUrl;
+                        avatarError.textContent = '';
+                    } else {
+                        avatarError.textContent = result.message || 'Không thể tải lên ảnh đại diện.';
+                        avatarPreview.style.display = 'none';
+                        avatarRequest.value = 'No Avatar';
                     }
-                });
+                } catch (error) {
+                    avatarError.textContent = 'Lỗi tải lên ảnh đại diện.';
+                    avatarPreview.style.display = 'none';
+                    avatarRequest.value = 'No Avatar';
+                    console.error('Lỗi tải lên:', error);
+                }
             });
 
             // Ensure AvatarRequest is set to 'No Avatar' if no file is selected
-            $('#registerForm').submit(function () {
-                if (!$('#avatar').val()) {
-                    $('#avatarRequest').val('No Avatar');
+            document.getElementById('registerForm').addEventListener('submit', function () {
+                if (!avatarInput.value) {
+                    avatarRequest.value = 'No Avatar';
                 }
             });
         });
